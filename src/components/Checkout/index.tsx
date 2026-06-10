@@ -1,5 +1,6 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Breadcrumb from "../Common/Breadcrumb";
 import Login from "./Login";
 import Shipping from "./Shipping";
@@ -9,6 +10,18 @@ import Coupon from "./Coupon";
 import Billing from "./Billing";
 
 const Checkout = () => {
+  const router = useRouter();
+
+  useEffect(() => {
+    const customer = localStorage.getItem("customer");
+    const token = localStorage.getItem("token");
+
+    if (!customer || !token) {
+      alert("Silakan login terlebih dahulu");
+      router.push("/signin");
+    }
+  }, [router]);
+
   return (
     <>
       <Breadcrumb title={"Checkout"} pages={["checkout"]} />
@@ -18,112 +31,82 @@ const Checkout = () => {
             <div className="flex flex-col lg:flex-row gap-7.5 xl:gap-11">
               {/* <!-- checkout left --> */}
               <div className="lg:max-w-[670px] w-full">
-                {/* <!-- login box --> */}
-                <Login />
+                <div className="bg-white shadow-1 rounded-[10px] overflow-hidden">
 
-                {/* <!-- billing details --> */}
-                <Billing />
+                  {/* Header */}
+                  <div className="border-b border-gray-3 py-5 px-6 flex items-center justify-between">
+                    <h3 className="font-medium text-xl text-dark">
+                      Item Pesanan (1 Item)
+                    </h3>
 
-                {/* <!-- address box two --> */}
-                <Shipping />
-
-                {/* <!-- others note box --> */}
-                <div className="bg-white shadow-1 rounded-[10px] p-4 sm:p-8.5 mt-7.5">
-                  <div>
-                    <label htmlFor="notes" className="block mb-2.5">
-                      Other Notes (optional)
-                    </label>
-
-                    <textarea
-                      name="notes"
-                      id="notes"
-                      rows={5}
-                      placeholder="Notes about your order, e.g. speacial notes for delivery."
-                      className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full p-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
-                    ></textarea>
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-full bg-red-50 text-red-500 text-sm"
+                    >
+                      Hapus Semua
+                    </button>
                   </div>
+
+                  {/* Table Header */}
+                  <div className="grid grid-cols-6 gap-4 px-6 py-4 border-b border-gray-3 bg-gray-1 text-sm font-medium">
+                    <div>Gambar</div>
+                    <div className="col-span-2">Produk</div>
+                    <div className="text-center">Qty</div>
+                    <div className="text-center">Harga</div>
+                    <div className="text-center">Total</div>
+                  </div>
+
+                  {/* Product */}
+                  <div className="grid grid-cols-6 gap-4 px-6 py-5 items-center border-b border-gray-3">
+
+                    <div>
+                      <img
+                        src="/images/products/product-1.jpg"
+                        alt="product"
+                        className="w-20 h-20 object-cover rounded-lg"
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <h4 className="font-medium text-dark">
+                        A3 Color
+                      </h4>
+
+                      <p className="text-sm text-gray-500">
+                        Stiker Chromo, 1 Muka
+                      </p>
+                    </div>
+
+                    <div className="text-center font-medium">
+                      1
+                    </div>
+
+                    <div className="text-center">
+                      Rp 5.500
+                    </div>
+
+                    <div className="text-center font-medium text-red">
+                      Rp 5.500
+                    </div>
+
+                  </div>
+
+                  {/* Subtotal */}
+                  <div className="flex items-center justify-between px-6 py-5">
+                    <span className="font-medium text-dark">
+                      Subtotal
+                    </span>
+
+                    <span className="font-semibold text-red text-lg">
+                      Rp 5.500
+                    </span>
+                  </div>
+
                 </div>
               </div>
 
               {/* // <!-- checkout right --> */}
               <div className="max-w-[455px] w-full">
-                {/* <!-- order list box --> */}
-                <div className="bg-white shadow-1 rounded-[10px]">
-                  <div className="border-b border-gray-3 py-5 px-4 sm:px-8.5">
-                    <h3 className="font-medium text-xl text-dark">
-                      Your Order
-                    </h3>
-                  </div>
-
-                  <div className="pt-2.5 pb-8.5 px-4 sm:px-8.5">
-                    {/* <!-- title --> */}
-                    <div className="flex items-center justify-between py-5 border-b border-gray-3">
-                      <div>
-                        <h4 className="font-medium text-dark">Product</h4>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-dark text-right">
-                          Subtotal
-                        </h4>
-                      </div>
-                    </div>
-
-                    {/* <!-- product item --> */}
-                    <div className="flex items-center justify-between py-5 border-b border-gray-3">
-                      <div>
-                        <p className="text-dark">iPhone 14 Plus , 6/128GB</p>
-                      </div>
-                      <div>
-                        <p className="text-dark text-right">$899.00</p>
-                      </div>
-                    </div>
-
-                    {/* <!-- product item --> */}
-                    <div className="flex items-center justify-between py-5 border-b border-gray-3">
-                      <div>
-                        <p className="text-dark">Asus RT Dual Band Router</p>
-                      </div>
-                      <div>
-                        <p className="text-dark text-right">$129.00</p>
-                      </div>
-                    </div>
-
-                    {/* <!-- product item --> */}
-                    <div className="flex items-center justify-between py-5 border-b border-gray-3">
-                      <div>
-                        <p className="text-dark">Havit HV-G69 USB Gamepad</p>
-                      </div>
-                      <div>
-                        <p className="text-dark text-right">$29.00</p>
-                      </div>
-                    </div>
-
-                    {/* <!-- product item --> */}
-                    <div className="flex items-center justify-between py-5 border-b border-gray-3">
-                      <div>
-                        <p className="text-dark">Shipping Fee</p>
-                      </div>
-                      <div>
-                        <p className="text-dark text-right">$15.00</p>
-                      </div>
-                    </div>
-
-                    {/* <!-- total --> */}
-                    <div className="flex items-center justify-between pt-5">
-                      <div>
-                        <p className="font-medium text-lg text-dark">Total</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-lg text-dark text-right">
-                          $1072.00
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* <!-- coupon box --> */}
-                <Coupon />
 
                 {/* <!-- shipping box --> */}
                 <ShippingMethod />

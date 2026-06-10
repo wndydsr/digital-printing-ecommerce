@@ -1,103 +1,110 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import {
+  LayoutGrid,
+  CreditCard,
+  FileText,
+  Flag,
+  ImageIcon,
+  Sticker,
+  Package,
+  Mail,
+  Calendar,
+  BookOpen,
+} from "lucide-react";
 
-const CategoryItem = ({ category }) => {
-  const [selected, setSelected] = useState(false);
-  return (
-    <button
-      className={`${
-        selected && "text-blue"
-      } group flex items-center justify-between ease-out duration-200 hover:text-blue `}
-      onClick={() => setSelected(!selected)}
-    >
-      <div className="flex items-center gap-2">
-        <div
-          className={`cursor-pointer flex items-center justify-center rounded w-4 h-4 border ${
-            selected ? "border-blue bg-blue" : "bg-white border-gray-3"
-          }`}
-        >
-          <svg
-            className={selected ? "block" : "hidden"}
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M8.33317 2.5L3.74984 7.08333L1.6665 5"
-              stroke="white"
-              strokeWidth="1.94437"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
+// 🔹 Buat interface props agar bisa dioper dari luar
+interface CategoryDropdownProps {
+  selected?: string;
+  onSelect?: (id: string) => void;
+}
 
-        <span>{category.name}</span>
-      </div>
-
-      <span
-        className={`${
-          selected ? "text-white bg-blue" : "bg-gray-2"
-        } inline-flex rounded-[30px] text-custom-xs px-2 ease-out duration-200 group-hover:text-white group-hover:bg-blue`}
-      >
-        {category.products}
-      </span>
-    </button>
-  );
+const getCategoryIcon = (slug: string) => {
+  switch (slug) {
+    case "all": return LayoutGrid;
+    case "kartu-nama": return CreditCard;
+    case "brosur-flyer": case "brosur": return FileText;
+    case "banner-spanduk": case "banner": case "spanduk": return Flag;
+    case "poster": return ImageIcon;
+    case "stiker": return Sticker;
+    case "kemasan": return Package;
+    case "undangan": return Mail;
+    case "kalender": return Calendar;
+    case "buku-majalah": return BookOpen;
+    default: return Package;
+  }
 };
 
-const CategoryDropdown = ({ categories }) => {
-  const [toggleDropdown, setToggleDropdown] = useState(true);
+const CategoryDropdown = ({ selected, onSelect }: CategoryDropdownProps) => {
+  const [categories, setCategories] = useState<any[]>([
+    { id: "all", name: "Semua Produk", slug: "all" }
+  ]);
+  
+  // State cadangan jika komponen ini dipanggil tanpa props (seperti di Hero.tsx)
+  const [localSelected, setLocalSelected] = useState<string>("all");
+
+  // Tentukan mana nilai selected dan fungsi klik yang aktif digunakan
+  const activeSelected = selected !== undefined ? selected : localSelected;
+
+  const handleSelect = (id: string) => {
+    if (onSelect) {
+      onSelect(id);
+    } else {
+      setLocalSelected(id);
+    }
+  };
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://127.0.0.1:8000/api/categories", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setCategories([
+            { id: "all", name: "Semua Produk", slug: "all" },
+            ...data
+          ]);
+        }
+      } catch (err) {
+        console.error("Gagal memuat kategori:", err);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   return (
-    <div className="bg-white shadow-1 rounded-lg">
-      <div
-        onClick={(e) => {
-          e.preventDefault();
-          setToggleDropdown(!toggleDropdown);
-        }}
-        className={`cursor-pointer flex items-center justify-between py-3 pl-6 pr-5.5 ${
-          toggleDropdown && "shadow-filter"
-        }`}
-      >
-        <p className="text-dark">Category</p>
-        <button
-          aria-label="button for category dropdown"
-          className={`text-dark ease-out duration-200 ${
-            toggleDropdown && "rotate-180"
-          }`}
-        >
-          <svg
-            className="fill-current"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              fillRule="evenodd"
-              clipRule="evenodd"
-              d="M4.43057 8.51192C4.70014 8.19743 5.17361 8.161 5.48811 8.43057L12 14.0122L18.5119 8.43057C18.8264 8.16101 19.2999 8.19743 19.5695 8.51192C19.839 8.82642 19.8026 9.29989 19.4881 9.56946L12.4881 15.5695C12.2072 15.8102 11.7928 15.8102 11.5119 15.5695L4.51192 9.56946C4.19743 9.29989 4.161 8.82641 4.43057 8.51192Z"
-              fill=""
-            />
-          </svg>
-        </button>
-      </div>
+    <div className="bg-white shadow-1 rounded-lg py-4 px-5">
+      <div className="space-y-0.5">
+        {categories.map((category) => {
+          const Icon = getCategoryIcon(category.slug);
+          const isSelected = activeSelected === String(category.id);
 
-      {/* dropdown && 'shadow-filter */}
-      {/* <!-- dropdown menu --> */}
-      <div
-        className={`flex-col gap-3 py-6 pl-6 pr-5.5 ${
-          toggleDropdown ? "flex" : "hidden"
-        }`}
-      >
-        {categories.map((category, key) => (
-          <CategoryItem key={key} category={category} />
-        ))}
+          return (
+            <button
+              key={category.id}
+              type="button"
+              onClick={() => handleSelect(String(category.id))}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                isSelected
+                  ? "bg-blue-600 text-blue font-medium shadow-sm" 
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <Icon size={14} className={isSelected ? "text-blue" : "text-gray-400"} />
+              <span className="text-xs font-medium">
+                {category.name}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -28,7 +28,7 @@ const Testimonials = () => {
         <div className="">
           <div className="swiper testimonial-carousel common-carousel p-5">
             {/* <!-- section title --> */}
-            <div className="mb-10 flex items-center justify-between">
+            <div className="mt-10 mb-10 flex items-center justify-between">
               <div>
                 <span className="flex items-center gap-2.5 font-medium text-dark mb-1.5">
                   <Image

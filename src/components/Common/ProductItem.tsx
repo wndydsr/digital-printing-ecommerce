@@ -10,9 +10,11 @@ import { updateproductDetails } from "@/redux/features/product-details";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "@/redux/store";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const ProductItem = ({ item }: { item: Product }) => {
   const { openModal } = useModalContext();
+  const router = useRouter();
 
   const dispatch = useDispatch<AppDispatch>();
 
@@ -22,14 +24,23 @@ const ProductItem = ({ item }: { item: Product }) => {
   };
 
   // add to cart
-  const handleAddToCart = () => {
-    dispatch(
-      addItemToCart({
-        ...item,
-        quantity: 1,
-      })
-    );
-  };
+ const handleAddToCart = () => {
+     const customer = localStorage.getItem("customer");
+     const token = localStorage.getItem("token");
+ 
+     if (!customer || !token) {
+       alert("Silakan login terlebih dahulu");
+       router.push("/signin");
+       return;
+     }
+ 
+     dispatch(
+       addItemToCart({
+         ...item,
+         quantity: 1,
+       })
+     );
+   };
 
   const handleItemToWishList = () => {
     dispatch(
@@ -48,7 +59,7 @@ const ProductItem = ({ item }: { item: Product }) => {
   return (
     <div className="group">
       <div className="relative overflow-hidden flex items-center justify-center rounded-lg bg-[#F6F7FB] min-h-[270px] mb-4">
-        <Image src={item.imgs.previews[0]} alt="" width={250} height={250} />
+        <img src={item.imgs.previews[0]} alt="" width={250} height={250} />
 
         <div className="absolute left-0 bottom-0 translate-y-full w-full flex items-center justify-center gap-2.5 pb-5 ease-linear duration-200 group-hover:translate-y-0">
           <button
@@ -160,8 +171,7 @@ const ProductItem = ({ item }: { item: Product }) => {
       </h3>
 
       <span className="flex items-center gap-2 font-medium text-lg">
-        <span className="text-dark">${item.discountedPrice}</span>
-        <span className="text-dark-4 line-through">${item.price}</span>
+        {item.price}
       </span>
     </div>
   );

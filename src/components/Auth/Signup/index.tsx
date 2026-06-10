@@ -1,8 +1,72 @@
+"use client";
+
+import { useState } from "react";
 import Breadcrumb from "@/components/Common/Breadcrumb";
 import Link from "next/link";
 import React from "react";
 
 const Signup = () => {
+
+  const [form, setForm] = useState({
+      name: "",
+      phone: "",
+      email: "",
+      address: "",
+      password: "",
+      password_confirmation: "",
+    });
+
+    const handleChange = (
+      e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+      setForm({
+        ...form,
+        [e.target.name]: e.target.value,
+      });
+    };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  console.log("submit jalan");
+  console.log(form);
+
+ try {
+  const response = await fetch(
+  "http://127.0.0.1:8000/api/customer/register",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(form),
+  }
+);
+
+const data = await response.json();
+
+console.log("STATUS:", response.status);
+console.log("DATA:", data);
+
+if (response.ok) {
+  localStorage.setItem("token", data.token);
+
+  localStorage.setItem(
+    "customer",
+    JSON.stringify(data.customer)
+  );
+
+  alert("Registrasi berhasil");
+
+  window.location.href = "/";
+}
+
+} catch (error) {
+  console.error("FETCH ERROR:", error);
+}
+  }
+
   return (
     <>
       <Breadcrumb title={"Signup"} pages={["Signup"]} />
@@ -87,7 +151,7 @@ const Signup = () => {
             </span>
 
             <div className="mt-5.5">
-              <form>
+              <form onSubmit={handleSubmit}>
                 <div className="mb-5">
                   <label htmlFor="name" className="block mb-2.5">
                     Full Name <span className="text-red">*</span>
@@ -96,11 +160,28 @@ const Signup = () => {
                   <input
                     type="text"
                     name="name"
-                    id="name"
+                    value={form.name}
+                    onChange={handleChange}
+
                     placeholder="Enter your full name"
                     className="rounded-lg border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-3 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                   />
                 </div>
+
+                <div className="mb-5">
+                <label className="block mb-2.5">
+                  Phone
+                </label>
+
+                <input
+                  type="text"
+                  name="phone"
+                  value={form.phone}
+                  onChange={handleChange}
+                  placeholder="08xxxxxxxxxx"
+                  className="rounded-lg border border-gray-3 bg-gray-1 w-full py-3 px-5"
+                />
+              </div>
 
                 <div className="mb-5">
                   <label htmlFor="email" className="block mb-2.5">
@@ -108,11 +189,27 @@ const Signup = () => {
                   </label>
 
                   <input
-                    type="email"
-                    name="email"
-                    id="email"
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
                     placeholder="Enter your email address"
                     className="rounded-lg border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-3 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
+                  />
+                </div>
+
+                <div className="mb-5">
+                  <label className="block mb-2.5">
+                    Address
+                  </label>
+
+                  <input
+                    type="text"
+                    name="address"
+                    value={form.address}
+                    onChange={handleChange}
+                    placeholder="Alamat"
+                    className="rounded-lg border border-gray-3 bg-gray-1 w-full py-3 px-5"
                   />
                 </div>
 
@@ -122,9 +219,10 @@ const Signup = () => {
                   </label>
 
                   <input
-                    type="password"
-                    name="password"
-                    id="password"
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
                     placeholder="Enter your password"
                     autoComplete="on"
                     className="rounded-lg border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-3 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
@@ -136,10 +234,11 @@ const Signup = () => {
                     Re-type Password <span className="text-red">*</span>
                   </label>
 
-                  <input
+               <input
                     type="password"
-                    name="re-type-password"
-                    id="re-type-password"
+                    name="password_confirmation"
+                    value={form.password_confirmation}
+                    onChange={handleChange}
                     placeholder="Re-type your password"
                     autoComplete="on"
                     className="rounded-lg border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-3 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"

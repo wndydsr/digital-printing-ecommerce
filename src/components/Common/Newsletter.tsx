@@ -1,51 +1,83 @@
 import React from "react";
 import Image from "next/image";
+import {
+  User,
+  ShoppingBag,
+  Upload,
+  CreditCard,
+  Truck,
+} from "lucide-react";
 
-const Newsletter = () => {
+const OrderSteps = () => {
+  const steps = [
+    {
+      icon: <User size={28} />,
+      title: "Login",
+      desc: "Masuk atau daftar akun.",
+    },
+    {
+      icon: <ShoppingBag size={28} />,
+      title: "Pilih Produk",
+      desc: "Pilih jenis dan spesifikasi produk.",
+    },
+    {
+      icon: <Upload size={28} />,
+      title: "Upload Desain",
+      desc: "Upload desain sendiri atau gunakan jasa desain kami.",
+    },
+    {
+      icon: <CreditCard size={28} />,
+      title: "Checkout",
+      desc: "Konfirmasi pesanan dan lakukan pembayaran.",
+    },
+    {
+      icon: <Truck size={28} />,
+      title: "Pengiriman",
+      desc: "Pesanan dikirim atau dapat diambil langsung.",
+    },
+  ];
+
   return (
     <section className="overflow-hidden">
       <div className="max-w-[1170px] mx-auto px-4 sm:px-8 xl:px-0">
-        <div className="relative z-1 overflow-hidden rounded-xl">
-          {/* <!-- bg shapes --> */}
+        <div className="relative overflow-hidden rounded-xl">
+
           <Image
             src="/images/shapes/newsletter-bg.jpg"
-            alt="background illustration"
-            className="absolute -z-1 w-full h-full left-0 top-0 rounded-xl"
-            width={1170}
-            height={200}
+            alt="background"
+            fill
+            className="absolute inset-0 object-cover -z-10"
           />
-          <div className="absolute -z-1 max-w-[523px] max-h-[243px] w-full h-full right-0 top-0 bg-gradient-1"></div>
 
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8 px-4 sm:px-7.5 xl:pl-12.5 xl:pr-14 py-11">
-            <div className="max-w-[491px] w-full">
-              <h2 className="max-w-[399px] text-white font-bold text-lg sm:text-xl xl:text-heading-4 mb-3">
-                Don&apos;t Miss Out Latest Trends & Offers
+          <div className="absolute inset-0 bg-blue-900/80 -z-10"></div>
+
+          <div className="py-4 px-6 lg:px-12">
+            <div className="text-center mb-8">
+              <h2 className="text-white text-2xl font-semibold mb-3">
+                Langkah-Langkah Order Online
               </h2>
-              <p className="text-white">
-                Register to receive news about the latest offers & discount
-                codes
-              </p>
+
             </div>
 
-            <div className="max-w-[477px] w-full">
-              <form>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <input
-                    type="email"
-                    name="email"
-                    id="email"
-                    placeholder="Enter your email"
-                    className="w-full bg-gray-1 border border-gray-3 outline-none rounded-md placeholder:text-dark-4 py-3 px-5"
-                  />
-                  <button
-                    type="submit"
-                    className="inline-flex justify-center py-3 px-7 text-white bg-blue font-medium rounded-md ease-out duration-200 hover:bg-blue-dark"
-                  >
-                    Subscribe
-                  </button>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+              {steps.map((step, index) => (
+                <div
+                  key={index}
+                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-5 text-center text-white hover:bg-white/15 transition"
+                >
+                  <div className="w-6 h-6 mx-auto mb-4 flex items-center justify-center rounded-full bg-blue-500">
+                    {step.icon}
+                  </div>
+
+                  <h3 className="font-bold mb-2">{step.title}</h3>
+
+                  <p className="text-sm text-white/75">
+                    {step.desc}
+                  </p>
                 </div>
-              </form>
+              ))}
             </div>
+
           </div>
         </div>
       </div>
@@ -53,4 +85,4 @@ const Newsletter = () => {
   );
 };
 
-export default Newsletter;
+export default OrderSteps;

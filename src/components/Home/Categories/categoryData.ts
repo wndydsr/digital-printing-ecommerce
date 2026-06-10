@@ -1,43 +1,48 @@
 const data = [
   {
-    title: "Televisions",
+    title: "Kartu Nama",
     id: 1,
-    img: "/images/categories/categories-01.png",
+    img: "/images/categories/kartu.png",
   },
   {
-    title: "Laptop & PC",
+    title: "Brosur & Flyer",
     id: 2,
-    img: "/images/categories/categories-02.png",
+    img: "/images/categories/brosur.png",
   },
   {
-    title: "Mobile & Tablets",
+    title: "Banner & Spanduk",
     id: 3,
-    img: "/images/categories/categories-03.png",
+    img: "/images/categories/banner.png",
   },
   {
-    title: "Games & Videos",
+    title: "Poster",
     id: 4,
-    img: "/images/categories/categories-04.png",
+    img: "/images/categories/poster.png",
   },
   {
-    title: "Home Appliances",
+    title: "Stiker",
     id: 5,
-    img: "/images/categories/categories-05.png",
+    img: "/images/categories/stiker.png",
   },
   {
-    title: "Health & Sports",
+    title: "Kemasan",
     id: 6,
-    img: "/images/categories/categories-06.png",
+    img: "/images/categories/kemasan.png",
   },
   {
-    title: "Watches",
+    title: "Undangan",
     id: 7,
-    img: "/images/categories/categories-07.png",
+    img: "/images/categories/undangan.png",
   },
   {
-    title: "Televisions",
+    title: "Kalender",
     id: 8,
-    img: "/images/categories/categories-04.png",
+    img: "/images/categories/kalender.png",
+  },
+  {
+    title: "Buku & Majalah",
+    id: 9,
+    img: "/images/categories/buku.png",
   },
 ];
 

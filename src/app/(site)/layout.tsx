@@ -49,7 +49,7 @@ export default function RootLayout({
               </CartModalProvider>
             </ReduxProvider>
             <ScrollToTop />
-            <Footer />
+            {/* <Footer /> */}
           </>
         )}
       </body>

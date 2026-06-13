@@ -85,8 +85,8 @@ const SingleItem = ({ item }: { item: Product }) => {
           </h3>
 
           <span className="flex items-center justify-center gap-2 font-medium text-lg">
-            <span className="text-dark">${item.discountedPrice}</span>
-            <span className="text-dark-4 line-through">${item.price}</span>
+           
+            <span className="text-dark-4 line-through">Rp {Number(item.price).toLocaleString("id-ID")}</span>
           </span>
         </div>
 

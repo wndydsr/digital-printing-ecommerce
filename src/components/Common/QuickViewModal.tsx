@@ -42,13 +42,12 @@ const QuickViewModal = () => {
   // ====================================================================
   // 🔥 LOGIKA HITUNGAN YANG SUDAH DISINKRONKAN DENGAN IS_CUSTOM
   // ====================================================================
-  const isCustom = product?.is_custom == 1 || product?.is_custom === true; // 1. Cek tipe produk
+  const isCustom = product?.is_custom == 1 || product?.is_custom === true;
 
   const pPanjang = Number(panjang || 0);
   const pLebar = Number(lebar || 0);
   const luas = (pPanjang * pLebar) / 10000;
 
-  // 1. Kumpulkan Harga Per Meter (Harga Dasar + Atribut Tambahan)
   let hargaPerMeter = Number(product?.price || 0);
   const additionalPriceSum = Object.values(selectedAttributes).reduce(
     (sum, valueObj: any) => sum + Number(valueObj?.additional_price || 0),
@@ -56,12 +55,10 @@ const QuickViewModal = () => {
   );
   hargaPerMeter += additionalPriceSum;
 
-  // 2. Tentukan Harga Per Item (Hanya dikali luas jika produk bertipe KUSTOM)
   const hargaPerItem = (isCustom && luas > 0) 
     ? luas * hargaPerMeter 
     : hargaPerMeter;
 
-  // 3. Total Harga Akhir Sesuai Jumlah Quantity
   const totalEstimatedPrice = hargaPerItem * quantity;
   // ====================================================================
 
@@ -81,34 +78,151 @@ const QuickViewModal = () => {
     openPreviewModal();
   };
 
-  const handleAddToCart = () => {
-    const customer = localStorage.getItem("customer");
+  // 🔥 Fungsi Validasi Input
+  const validateInput = () => {
+    if (isCustom) {
+      if (!panjang || Number(panjang) <= 0) {
+        alert("Mohon masukkan ukuran panjang yang valid.");
+        return false;
+      }
+      if (!lebar || Number(lebar) <= 0) {
+        alert("Mohon masukkan ukuran lebar yang valid.");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleAddToCart = async () => {
+    // 1. Validasi Input Kustom
+    if (!validateInput()) return;
+
+    // 2. Validasi Login
+    const customerStr = localStorage.getItem("customer");
     const token = localStorage.getItem("token");
 
-    if (!customer || !token) {
+    if (!customerStr || !token) {
       alert("Silakan login terlebih dahulu");
       router.push("/signin");
       return;
     }
 
+    const customer = JSON.parse(customerStr);
+
     if (product) {
-      dispatch(addItemToCart({
-        id: product.id,
-        title: product.name,
-        price: hargaPerItem, // Mengirim harga kalkulasi final yang aman
-        quantity: quantity,
-        photo: product.photo,
-        img: photoUrl,
-        panjang: isCustom ? panjang : "0", // Set "0" jika bukan produk meteran
-        lebar: isCustom ? lebar : "0",     // Set "0" jika bukan produk meteran
-        selectedOptions: selectedAttributes, 
-        imgs: {
-          previews: [photoUrl],
-          thumbnails: [photoUrl]
+      try {
+        // 🔥 3. Simpan ke Database Laravel Menggunakan fetch bawaan (TIDAK PERLU IMPORT APIFETCH)
+        const res = await fetch("http://127.0.0.1:8000/api/cart", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` 
+          },
+          body: JSON.stringify({
+            customer_id: customer.id,
+            product_id: product.id,
+            quantity: quantity,
+            panjang: isCustom ? panjang : 0,
+            lebar: isCustom ? lebar : 0,
+            selected_options: selectedAttributes,
+          })
+        });
+
+        if (!res.ok) {
+           throw new Error("Gagal menyimpan ke database");
         }
-      } as any));
-      
-      closeModal();
+
+        // 4. Simpan ke Redux agar tampilan UI langsung terupdate
+        dispatch(addItemToCart({
+          id: product.id,
+          title: product.name,
+          price: hargaPerItem, 
+          quantity: quantity,
+          photo: product.photo,
+          img: photoUrl,
+          panjang: isCustom ? panjang : "0", 
+          lebar: isCustom ? lebar : "0",    
+          selectedOptions: selectedAttributes, 
+          imgs: {
+            previews: [photoUrl],
+            thumbnails: [photoUrl]
+          }
+        } as any));
+        
+        closeModal();
+      } catch (error) {
+        console.error("Gagal menyimpan keranjang ke database:", error);
+        alert("Terjadi kesalahan jaringan saat menambahkan ke keranjang.");
+      }
+    }
+  };
+
+  // 🔥 Fungsi Beli Langsung / Checkout
+  const handleCheckout = async () => {
+    // 1. Validasi Input Kustom
+    if (!validateInput()) return;
+
+    // 2. Validasi Login
+    const customerStr = localStorage.getItem("customer");
+    const token = localStorage.getItem("token");
+
+    if (!customerStr || !token) {
+      alert("Silakan login terlebih dahulu");
+      router.push("/signin");
+      return;
+    }
+
+    const customer = JSON.parse(customerStr);
+
+    if (product) {
+      try {
+        // 🔥 3. Wajib simpan ke Database Laravel dulu sebelum pindah halaman
+        const res = await fetch("http://127.0.0.1:8000/api/cart", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` 
+          },
+          body: JSON.stringify({
+            customer_id: customer.id,
+            product_id: product.id,
+            quantity: quantity,
+            panjang: isCustom ? panjang : 0,
+            lebar: isCustom ? lebar : 0,
+            selected_options: selectedAttributes,
+          })
+        });
+
+        if (!res.ok) {
+           throw new Error("Gagal memproses Beli Langsung ke database");
+        }
+
+        // 4. Update memori Redux 
+        dispatch(addItemToCart({
+          id: product.id,
+          title: product.name,
+          price: hargaPerItem, 
+          quantity: quantity,
+          photo: product.photo,
+          img: photoUrl,
+          panjang: isCustom ? panjang : "0", 
+          lebar: isCustom ? lebar : "0",    
+          selectedOptions: selectedAttributes, 
+          imgs: {
+            previews: [photoUrl],
+            thumbnails: [photoUrl]
+          }
+        } as any));
+        
+        closeModal();
+        
+        // 🔥 5. Setelah dipastikan masuk database, baru pindah ke Checkout
+        router.push("/checkout");
+        
+      } catch (error) {
+        console.error("Gagal memproses Beli Langsung:", error);
+        alert("Terjadi kesalahan jaringan saat memproses pesanan.");
+      }
     }
   };
 
@@ -326,10 +440,19 @@ const QuickViewModal = () => {
               <div className="flex flex-wrap items-center gap-4">
                 <button
                   disabled={quantity === 0}
-                  onClick={() => handleAddToCart()}
-                  className="inline-flex font-medium text-white bg-blue py-3 px-7 rounded-md ease-out duration-200 hover:bg-blue-dark"
+                  onClick={handleAddToCart}
+                  className="inline-flex font-medium text-white bg-blue py-3 px-7 rounded-md ease-out duration-200 hover:bg-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add to Cart
+                </button>
+
+                {/* 🔥 Tombol Beli Langsung ditambahkan di sini */}
+                <button
+                  disabled={quantity === 0}
+                  onClick={handleCheckout}
+                  className="inline-flex font-medium text-blue border-2 border-blue bg-white py-3 px-7 rounded-md ease-out duration-200 hover:bg-blue hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Beli Langsung
                 </button>
               </div>
             </div>

@@ -12,6 +12,7 @@ import QuickViewModal from "@/components/Common/QuickViewModal";
 import CartSidebarModal from "@/components/Common/CartSidebarModal";
 import { PreviewSliderProvider } from "../context/PreviewSliderContext";
 import PreviewSliderModal from "@/components/Common/PreviewSlider";
+import ChatBotWidget from "@/components/Common/ChatBotWidget";
 
 import ScrollToTop from "@/components/Common/ScrollToTop";
 import PreLoader from "@/components/Common/PreLoader";
@@ -47,9 +48,10 @@ export default function RootLayout({
                   </PreviewSliderProvider>
                 </ModalProvider>
               </CartModalProvider>
+              <ChatBotWidget />
             </ReduxProvider>
             <ScrollToTop />
-            {/* <Footer /> */}
+            <Footer />
           </>
         )}
       </body>

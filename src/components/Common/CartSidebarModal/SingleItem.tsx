@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "@/redux/store";
@@ -6,22 +7,58 @@ import Image from "next/image";
 const SingleItem = ({ item, removeItemFromCart }) => {
   const dispatch = useDispatch<AppDispatch>();
 
-  const handleRemoveFromCart = () => {
-    dispatch(removeItemFromCart(item.id));
+  const handleRemoveFromCart = async () => {
+    try {
+      // 🔥 1. Hapus dari Database Laravel (Berdasarkan ID Item/Produk)
+      // Asumsi: endpoint delete membutuhkan ID produk atau ID cart item
+      await fetch(`http://127.0.0.1:8000/api/cart/item/${item.id}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
+      });
+
+      // 2. Hapus dari tampilan Redux
+      dispatch(removeItemFromCart(item.id));
+    } catch (error) {
+      console.error("Gagal menghapus item dari database:", error);
+      alert("Gagal menghapus produk. Coba lagi.");
+    }
   };
+
+  // Mengambil harga yang benar dari Redux (mengatasi perbedaan key)
+  const itemPrice = item.price || item.discountedPrice || 0;
 
   return (
     <div className="flex items-center justify-between gap-5">
       <div className="w-full flex items-center gap-6">
-        <div className="flex items-center justify-center rounded-[10px] bg-gray-3 max-w-[90px] w-full h-22.5">
-          <Image src={item.imgs?.thumbnails[0]} alt="product" width={100} height={100} />
+        <div className="flex items-center justify-center rounded-[10px] bg-gray-3 max-w-[90px] w-full h-22.5 overflow-hidden">
+          <img
+            src={item.imgs?.thumbnails?.[0] || item.img || "/placeholder.png"} 
+            alt="product" 
+            width={100} 
+            height={100} 
+            className="object-cover"
+          />
         </div>
 
         <div>
           <h3 className="font-medium text-dark mb-1 ease-out duration-200 hover:text-blue">
             <a href="#"> {item.title} </a>
           </h3>
-          <p className="text-custom-sm">Price: ${item.discountedPrice}</p>
+          
+          {/* 🔥 FORMAT RUPIAH YANG SUDAH DIPERBAIKI */}
+          <p className="text-custom-sm text-gray-500">
+            {item.quantity} x <span className="font-medium text-blue-600">Rp {Number(itemPrice).toLocaleString("id-ID")}</span>
+          </p>
+          
+          {/* Opsional: Menampilkan ukuran jika ada */}
+          {Number(item.panjang) > 0 && Number(item.lebar) > 0 && (
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              Ukuran: {item.panjang} x {item.lebar} cm
+            </p>
+          )}
         </div>
       </div>
 

@@ -59,22 +59,20 @@ const NewArrival = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-7.5 gap-y-9">
           {/* <!-- New Arrivals item --> */}
+          {/* */}
           {products.map((item: any) => (
             <ProductItem
               key={item.id}
               item={{
+                ...item, // 🔥 SEBARKAN SEMUA DATA DARI API (attributes, is_custom, dll)
                 id: item.id,
-                title: item.name,
+                title: item.name, // Tetap gunakan name sebagai title
                 reviews: 0,
                 price: item.price,
-                // discountedPrice: item.price,
+                // Mapping gambar agar sinkron dengan yang dibutuhkan ProductItem
                 imgs: {
-                  previews: [
-                    `http://127.0.0.1:8000/storage/${item.photo}`,
-                  ],
-                  thumbnails: [
-                    `http://127.0.0.1:8000/storage/${item.photo}`,
-                  ],
+                  previews: [`http://127.0.0.1:8000/storage/${item.photo}`],
+                  thumbnails: [`http://127.0.0.1:8000/storage/${item.photo}`],
                 },
               }}
             />

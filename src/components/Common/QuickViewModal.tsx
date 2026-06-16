@@ -102,7 +102,6 @@ const QuickViewModal = () => {
     return true;
   };
 
-  // 🔥 CONVERT DATA KE FORMDATA MULTIPART LINEAR (Sinkron dengan CartController)
   const createCartPayload = (customerId: string) => {
     const formData = new FormData();
     formData.append("customer_id", customerId);
@@ -115,19 +114,19 @@ const QuickViewModal = () => {
     const isNeedDesign = designMethod === "need-design";
     formData.append("need_design", isNeedDesign ? "1" : "0");
     formData.append("tahapan_order", isNeedDesign ? "antrean desain" : "siap cetak");
-
-    // Kirim objek spesifikasi cetak/atribut dalam bentuk string JSON
     formData.append("selected_options", JSON.stringify(selectedAttributes));
 
-    // Kirim file biner secara linear langsung ke root parameter request
-    if (designMethod === "ready-to-print") {
-      if (readyDesignFile) {
-        formData.append("design_file", readyDesignFile);
-      }
-    } else {
+    // 🔥 SESUAIKAN DENGAN VALIDASI LARAVEL
+    if (isNeedDesign) {
+      // Kirim sebagai array reference_files
       supportFiles.forEach((file) => {
         formData.append("reference_files[]", file);
       });
+    } else {
+      // Kirim sebagai design_file (tunggal sesuai controller)
+      if (readyDesignFile) {
+        formData.append("design_file", readyDesignFile);
+      }
     }
 
     return formData;
@@ -141,7 +140,7 @@ const QuickViewModal = () => {
 
     if (!customerStr || !token) {
       alert("Silakan login terlebih dahulu");
-      router.push("/signin");
+      router.push("/signin"); 
       return;
     }
 
@@ -229,9 +228,27 @@ const QuickViewModal = () => {
           selectedOptions: selectedAttributes, 
           imgs: { previews: [photoUrl], thumbnails: [photoUrl] }
         } as any));
-        
+
+
+        const directItem = {
+        id: product.id,
+        title: product.name,
+        price: hargaPerItem,
+        quantity: quantity,
+        photo: product.photo,
+        img: photoUrl,
+        panjang: isCustom ? panjang : "0",
+        lebar: isCustom ? lebar : "0",
+        selectedOptions: selectedAttributes,
+    };
+    
+        sessionStorage.setItem("directCheckoutItem", JSON.stringify(directItem));
+    
+        // Arahkan ke checkout dengan parameter type=direct
+        router.push("/checkout?type=direct");
         closeModal();
-        router.push("/checkout");
+        
+
         
       } catch (error) {
         console.error("Gagal memproses Beli Langsung:", error);

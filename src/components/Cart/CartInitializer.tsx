@@ -32,35 +32,35 @@ export default function CartInitializer() {
           });
 
           if (res.ok) {
-            const json = await res.json();
-            
-            // Mengecek apakah data items tersedia
-            if (json.data && json.data.items) {
-              // Memformat data dari database agar cocok dengan struktur Redux
-              const formattedItems = json.data.items.map((item: any) => ({
-                id: item.product_id,
-                title: item.product?.name || "Produk",
-                price: item.product?.price || 0,
-                quantity: item.quantity,
-                panjang: item.panjang || 0,
-                lebar: item.lebar || 0,
-                selectedOptions: item.selected_options || {},
-                img: item.product?.photo 
-                  ? (item.product.photo.startsWith("http") ? item.product.photo : `http://127.0.0.1:8000/storage/${item.product.photo}`) 
-                  : "/placeholder.png",
-                imgs: {
-                  previews: [item.product?.photo ? `http://127.0.0.1:8000/storage/${item.product.photo}` : "/placeholder.png"],
-                  thumbnails: [item.product?.photo ? `http://127.0.0.1:8000/storage/${item.product.photo}` : "/placeholder.png"]
-                }
-              }));
+  const json = await res.json(); // Sekarang 'json' berisi array langsung
+  
+  // 🔥 UBAH INI: Langsung proses array-nya, jangan cari .data.items
+  const rawItems = Array.isArray(json) ? json : [];
 
-              // Memasukkan seluruh data keranjang dari DB ke memori Redux
-              dispatch(setCartItems(formattedItems));
-            } else {
-              // Jika keranjang di database kosong, kosongkan juga di Redux
-              dispatch(setCartItems([]));
-            }
-          }
+  if (rawItems.length > 0) {
+    const formattedItems = rawItems.map((item: any) => ({
+      id: item.id,
+      product_id: item.product_id,
+      title: item.product?.name || "Produk",
+      price: item.product?.price || 0,
+      quantity: item.quantity,
+      panjang: item.panjang || 0,
+      lebar: item.lebar || 0,
+      selectedOptions: item.selected_options || {},
+      img: item.product?.photo 
+        ? (item.product.photo.startsWith("http") ? item.product.photo : `http://127.0.0.1:8000/storage/${item.product.photo}`) 
+        : "/placeholder.png",
+      imgs: {
+        previews: [item.product?.photo ? `http://127.0.0.1:8000/storage/${item.product.photo}` : "/placeholder.png"],
+        thumbnails: [item.product?.photo ? `http://127.0.0.1:8000/storage/${item.product.photo}` : "/placeholder.png"]
+      }
+    }));
+
+    dispatch(setCartItems(formattedItems));
+  } else {
+    dispatch(setCartItems([]));
+  }
+}
         } catch (error) {
           console.error("Gagal mengambil sinkronisasi keranjang dari server:", error);
         }

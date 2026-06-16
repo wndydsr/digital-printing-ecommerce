@@ -7,36 +7,61 @@ import PaymentMethod from "./PaymentMethod";
 import { useAppSelector, AppDispatch } from "@/redux/store";
 import { useDispatch, useSelector } from "react-redux";
 // Import pemanggil total harga dari cart-slice (sama seperti di OrderSummary)
-import { removeAllItemsFromCart, selectTotalPrice } from "@/redux/features/cart-slice"; 
+import { removeItemFromCart, selectTotalPrice } from "@/redux/features/cart-slice"; 
 
 const Checkout = () => {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
+  
+  // 1. Data Cart
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [totalPrice, setTotalPrice] = useState(0); // 🔥 State baru untuk total harga lokal
+  const [isDirect, setIsDirect] = useState(false);
 
+  // 2. Data Pelanggan
   const [loading, setLoading] = useState(false);
   const [customerData, setCustomerData] = useState<any>(null);
 
-  // 🔥 PERBAIKAN: Mengambil data keranjang dari "items" (sesuai Redux Anda)
-  const cartItems = useAppSelector((state: any) => state.cartReducer.items) || [];
-  
-  // 🔥 PERBAIKAN: Mengambil total harga dari selector bawaan Redux Anda
-  const totalPrice = useSelector(selectTotalPrice);
+  const allCartItems = useAppSelector((state: any) => state.cartReducer.items);
 
   useEffect(() => {
+    // A. Ambil data customer (Aman dari null)
     const customerStr = localStorage.getItem("customer");
-    const token = localStorage.getItem("token");
-
-    if (!customerStr || !token) {
-      alert("Silakan login terlebih dahulu");
-      router.push("/signin");
-    } else {
+    if (customerStr) {
       setCustomerData(JSON.parse(customerStr));
     }
-  }, [router]);
+
+    // B. Logika Checkout (Direct vs Keranjang)
+    const params = new URLSearchParams(window.location.search);
+    const type = params.get("type");
+
+    if (type === "direct") {
+      setIsDirect(true);
+      const directItem = sessionStorage.getItem("directCheckoutItem");
+      if (directItem) {
+        const item = JSON.parse(directItem);
+        setCartItems([item]);
+        // Hitung total hanya untuk item ini
+        setTotalPrice(Number(item.price) * Number(item.quantity));
+      }
+    } else {
+      setIsDirect(false);
+      setCartItems(allCartItems);
+      // Gunakan perhitungan total dari Redux untuk keranjang biasa
+      const totalRedux = allCartItems.reduce((sum: number, item: any) => 
+        sum + (Number(item.price || item.discountedPrice || 0) * Number(item.quantity)), 0);
+      setTotalPrice(totalRedux);
+    }
+  }, [allCartItems]);
 
   // Fungsi untuk memproses pesanan ke Database via API
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!customerData) {
+    alert("Data pelanggan belum dimuat. Mohon tunggu sebentar.");
+    return;
+  }
 
     if (cartItems.length === 0) {
       alert("Keranjang Kosong! Silakan pilih produk terlebih dahulu.");
@@ -54,19 +79,32 @@ const Checkout = () => {
       formData.append("current_stage_id", "1"); 
 
       cartItems.forEach((item: any, index: number) => {
-        formData.append(`items[${index}][product_id]`, item.id);
-        formData.append(`items[${index}][quantity]`, item.quantity);
-        formData.append(`items[${index}][panjang]`, item.panjang || 0);
-        formData.append(`items[${index}][lebar]`, item.lebar || 0);
-        formData.append(`items[${index}][need_design]`, "0"); 
+       const productId = item.product_id || item.id; 
+    
+    formData.append(`items[${index}][product_id]`, productId); 
+    formData.append(`items[${index}][quantity]`, item.quantity);
+    formData.append(`items[${index}][panjang]`, item.panjang || 0);
+    formData.append(`items[${index}][lebar]`, item.lebar || 0);
+    formData.append(`items[${index}][need_design]`, item.need_design ? "1" : "0");
 
-        // Menyertakan Atribut (Spesifikasi Cetak)
-        if (item.selectedOptions) {
-          Object.values(item.selectedOptions).forEach((opt: any) => {
-            formData.append(`items[${index}][attributes][]`, String(opt.id));
-          });
+        // 🔥 TAMBAHKAN INI UNTUK MENGIRIM FILE DARI KERANJANG
+        if (item.design_file instanceof File) {
+            formData.append(`items[${index}][design_file][]`, item.design_file);
         }
-      });
+        
+        if (item.support_files && Array.isArray(item.support_files)) {
+            item.support_files.forEach((file: File) => {
+                formData.append(`items[${index}][reference_files][]`, file);
+            });
+        }
+
+        // Spesifikasi Atribut
+        if (item.selectedOptions) {
+            Object.values(item.selectedOptions).forEach((opt: any) => {
+                formData.append(`items[${index}][attributes][]`, String(opt.id));
+            });
+        }
+    });
 
       // Panggil API Backend membuat pesanan
       const token = localStorage.getItem("token");
@@ -74,27 +112,40 @@ const Checkout = () => {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
+    "Accept": "application/json",
         },
         body: formData,
       });
 
-      if (!res.ok) {
+    if (!res.ok) {
         throw new Error("Gagal menyimpan pesanan");
-      }
+    }
 
-      // 🔥 KOSONGKAN KERANJANG DI DATABASE SETELAH CHECKOUT SUKSES
-      await fetch(`http://127.0.0.1:8000/api/cart/clear/${customerData.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
+    // 🔥 PASTI INI DIJALANKAN UNTUK BELI LANGSUNG
+    if (isDirect) {
+        console.log("Menghapus data Beli Langsung dari SessionStorage...");
+        sessionStorage.removeItem("directCheckoutItem");
+    // Di Checkout.tsx, pastikan kodenya seperti ini:
+} else {
+    // Jika Checkout Keranjang Normal
+    for (const item of cartItems) {
+        const deleteRes = await fetch(`http://127.0.0.1:8000/api/cart/item/${item.id}`, {
+            method: "DELETE",
+            headers: { 
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/json"
+            }
+        });
+
+        if (deleteRes.ok) {
+            // 🔥 INI KUNCINYA: Memanggil action ini akan memperbarui Redux store
+            dispatch(removeItemFromCart(item.id)); 
         }
-      });
+    }
+}
 
-      alert("Pesanan berhasil dibuat! Akan segera diproses.");
-      dispatch(removeAllItemsFromCart());
-      
-      // Arahkan ke halaman sukses
-      router.push(`/payment?amount=${totalPrice}`);
+    alert("Pesanan berhasil dibuat!");
+    router.push(`/payment?amount=${totalPrice}`);
 
     } catch (error) {
       console.error("Checkout error:", error);

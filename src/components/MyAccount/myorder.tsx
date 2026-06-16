@@ -37,10 +37,28 @@ const MyOrdersPage = () => {
 
   // Logika Filter Status
   const filteredOrders = orders.filter((order) => {
-    const status = (order.status || "").toLowerCase();
-    if (activeTab === "History Order") return true;
-    if (activeTab === "Pesanan Selesai") return status === "selesai";
-    return status === activeTab.toLowerCase();
+    const stageId = Number(order.current_stage_id);
+
+    switch (activeTab) {
+      case "Menunggu Pembayaran":
+        // Stage 1 (Butuh Desain) di awal transaksi sebelum upload bukti
+        return stageId === 1;
+        
+      case "Menunggu Verifikasi":
+        // Stage 6 (Antrean Desain) dengan status_id 1 (Pending)
+        return stageId === 6;
+        
+      case "Dalam Proses":
+        // Stage 3 (Desain) atau Stage 4 (Cetak) dengan status_id 2 (Diproses)
+        return stageId === 3 || stageId === 4 || stageId === 2;
+        
+      case "Pesanan Selesai":
+        // Stage 5 (Selesai) dengan status_id 3 (Done)
+        return stageId === 5;
+        
+      default:
+        return false;
+    }
   });
 
   return (

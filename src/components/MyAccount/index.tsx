@@ -4,10 +4,14 @@ import Breadcrumb from "../Common/Breadcrumb";
 import Image from "next/image";
 import AddressModal from "./AddressModal";
 import Orders from "./myorder";
+import { useSearchParams } from "next/navigation";
 
 const MyAccount = () => {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab"); 
+
   const [customer, setCustomer] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("account-details");
+  const [activeTab, setActiveTab] = useState(tabParam || "account-details");
   const [addressModal, setAddressModal] = useState(false);
 
   const [name, setName] = useState("");

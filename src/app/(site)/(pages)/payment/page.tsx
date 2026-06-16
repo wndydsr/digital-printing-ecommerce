@@ -55,7 +55,7 @@ const PaymentContent = () => {
     setTimeout(() => {
       setIsUploading(false);
       alert("Bukti pembayaran berhasil diunggah! Pesanan Anda akan segera diproses.");
-      router.push("/my-orders"); // Arahkan ke sini!
+      router.push("/my-account?tab=orders"); // Arahkan ke sini!
       // Di sini bisa ditambahkan router.push('/order-success') atau ke dashboard akun
     }, 1500);
   };

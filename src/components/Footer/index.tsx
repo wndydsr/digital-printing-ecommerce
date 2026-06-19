@@ -110,8 +110,14 @@ const Footer = () => {
                   FAQ
                 </Link>
               </li>
-              <li><a className="ease-out duration-200 hover:text-blue" href="#">Kebijakan Privasi</a></li>
-              <li><a className="ease-out duration-200 hover:text-blue" href="#">Syarat & Ketentuan</a></li>
+               <li>
+                <Link className="ease-out duration-200 hover:text-blue" href="/kebijakan-privasi">
+                  Kebijakan Privasi
+                </Link>
+              </li>
+              <li><a className="ease-out duration-200 hover:text-blue" href="/syarat-ketentuan">
+                Syarat & Ketentuan
+              </a></li>
             </ul>
           </div>
 

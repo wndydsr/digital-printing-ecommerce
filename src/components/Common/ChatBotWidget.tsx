@@ -16,7 +16,7 @@ const ChatBotWidget = () => {
     {
       id: 1,
       sender: "ai",
-      text: "Halo! Saya Ayu, asisten virtual cetak digitalmu. Ada yang bisa saya bantu hari ini?",
+      text: "Halo! Saya Nora, asisten virtual cetak digitalmu. Ada yang bisa saya bantu hari ini?",
       time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -127,7 +127,7 @@ const ChatBotWidget = () => {
             <Bot size={20} className="text-white" />
           </div>
           <div>
-            <h4 className="font-bold text-sm tracking-wide">Ayu - AI Assistant</h4>
+            <h4 className="font-bold text-sm tracking-wide">Nora - AI Assistant</h4>
             <span className="text-[11px] text-blue-100 flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
               Online / Siap Membantu

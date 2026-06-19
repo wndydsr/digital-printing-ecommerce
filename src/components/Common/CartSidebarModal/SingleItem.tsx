@@ -27,6 +27,28 @@ const SingleItem = ({ item, removeItemFromCart }) => {
     }
   };
 
+  const finalPricePerUnit = (() => {
+    let price = Number(item.price || 0); // Ambil harga dasar
+    
+    // Tambah harga atribut
+    if (item.selectedOptions && typeof item.selectedOptions === 'object') {
+      Object.values(item.selectedOptions).forEach((opt: any) => {
+        price += Number(opt.additional_price || 0);
+      });
+    }
+
+    // Kalkulasi Luas
+    const panjang = Number(item.panjang || 0);
+    const lebar = Number(item.lebar || 0);
+    if (panjang > 0 && lebar > 0) {
+      const luasM2 = (panjang * lebar) / 10000;
+      price = luasM2 * price;
+    }
+    return price;
+  })();
+
+
+
   // Mengambil harga yang benar dari Redux (mengatasi perbedaan key)
   const itemPrice = item.price || item.discountedPrice || 0;
 
@@ -47,11 +69,12 @@ const SingleItem = ({ item, removeItemFromCart }) => {
           <h3 className="font-medium text-dark mb-1 ease-out duration-200 hover:text-blue">
             <a href="#"> {item.title} </a>
           </h3>
-          
-          {/* 🔥 FORMAT RUPIAH YANG SUDAH DIPERBAIKI */}
+
           <p className="text-custom-sm text-gray-500">
-            {item.quantity} x <span className="font-medium text-blue-600">Rp {Number(itemPrice).toLocaleString("id-ID")}</span>
-          </p>
+          {item.quantity} x <span className="font-medium text-blue-600">
+            Rp {finalPricePerUnit.toLocaleString("id-ID")}
+          </span>
+        </p>
           
           {/* Opsional: Menampilkan ukuran jika ada */}
           {Number(item.panjang) > 0 && Number(item.lebar) > 0 && (

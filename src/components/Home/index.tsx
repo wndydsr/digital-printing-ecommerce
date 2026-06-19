@@ -23,13 +23,13 @@ const Home = () => {
   return (
     <main>
       <Hero />
-      <Categories />
+      <Newsletter />
+      {/* <Categories /> */}
       <NewArrival />
       {/* <PromoBanner /> */}
       {/* <BestSeller /> */}
       {/* <CounDown /> */}
       <Testimonials />
-      <Newsletter />
     </main>
   );
 };

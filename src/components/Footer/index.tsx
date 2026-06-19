@@ -1,5 +1,6 @@
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 const Footer = () => {
   const year = new Date().getFullYear();
@@ -99,8 +100,16 @@ const Footer = () => {
               Bantuan
             </h2>
             <ul className="flex flex-col gap-3">
-              <li><a className="ease-out duration-200 hover:text-blue" href="#">Cara Pemesanan</a></li>
-              <li><a className="ease-out duration-200 hover:text-blue" href="#">FAQ</a></li>
+              <li>
+              <Link className="ease-out duration-200 hover:text-blue" href="/cara-pemesanan">
+                  Cara Pemesanan
+                </Link>
+              </li>
+              <li>
+                <Link className="ease-out duration-200 hover:text-blue" href="/faq">
+                  FAQ
+                </Link>
+              </li>
               <li><a className="ease-out duration-200 hover:text-blue" href="#">Kebijakan Privasi</a></li>
               <li><a className="ease-out duration-200 hover:text-blue" href="#">Syarat & Ketentuan</a></li>
             </ul>

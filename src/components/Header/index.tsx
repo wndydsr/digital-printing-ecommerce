@@ -15,6 +15,7 @@ import { usePathname } from "next/navigation";
 import CartInitializer from "../Cart/CartInitializer"; 
 
 const Header = () => {
+  const cartItems = useAppSelector((state: any) => state.cartReducer.items) || [];
   const [customer, setCustomer] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -26,6 +27,25 @@ const Header = () => {
 
   const product = useAppSelector((state: any) => state.cartReducer.items) || [];
   const totalPrice = useSelector(selectTotalPrice) || 0;
+
+  // const calculateItemPrice = (item: any) => {
+  //   let price = Number(item.price || item.discountedPrice || 0);
+  //   if (item.selectedOptions && typeof item.selectedOptions === 'object') {
+  //     Object.values(item.selectedOptions).forEach((opt: any) => {
+  //       price += Number(opt.additional_price || 0);
+  //     });
+  //   }
+  //   const panjang = Number(item.panjang || 0);
+  //   const lebar = Number(item.lebar || 0);
+  //   if (panjang > 0 && lebar > 0) {
+  //     price = ((panjang * lebar) / 10000) * price;
+  //   }
+  //   return price;
+  // };
+
+  // const calculatedTotal = cartItems.reduce((sum: number, item: any) => {
+  //   return sum + (calculateItemPrice(item) * Number(item.quantity));
+  // }, 0);
 
   const handleOpenCartModal = () => {
     openCartModal();
@@ -183,14 +203,15 @@ const Header = () => {
                       </span>
                     </span>
 
-                    <div>
-                      <span className="block text-2xs text-dark-4 uppercase">
-                        cart
-                      </span>
-                      <p className="font-medium text-custom-sm text-dark">
-                        Rp {Number(totalPrice).toLocaleString("id-ID")}
-                      </p>
-                    </div>
+                   <div>
+                    <span className="block text-2xs text-dark-4 uppercase">
+                      cart
+                    </span>
+                    {/* 🔥 GUNAKAN calculatedTotal DI SINI */}
+                    <p className="font-medium text-custom-sm text-dark">
+                      Rp {Number(totalPrice).toLocaleString("id-ID")}
+                    </p>
+                  </div>
                   </button>
                 </div>
 

@@ -167,7 +167,7 @@ const QuickViewModal = () => {
         dispatch(addItemToCart({
           id: product.id,
           title: product.name,
-          price: hargaPerItem, 
+          price: Number(product.price), 
           quantity: quantity,
           photo: product.photo,
           img: photoUrl,
@@ -219,7 +219,8 @@ const QuickViewModal = () => {
         dispatch(addItemToCart({
           id: product.id,
           title: product.name,
-          price: hargaPerItem, 
+          // 🔥 KIRIM HARGA DASAR PER METER/UNIT, BUKAN HARGA TOTAL
+          price: Number(product.price), 
           quantity: quantity,
           photo: product.photo,
           img: photoUrl,
@@ -227,7 +228,7 @@ const QuickViewModal = () => {
           lebar: isCustom ? lebar : "0",    
           selectedOptions: selectedAttributes, 
           imgs: { previews: [photoUrl], thumbnails: [photoUrl] }
-        } as any));
+        } as any))
 
 
         const directItem = {

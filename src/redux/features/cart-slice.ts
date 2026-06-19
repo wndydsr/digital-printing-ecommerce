@@ -35,32 +35,22 @@ export const cart = createSlice({
     },
 
     addItemToCart: (state, action: PayloadAction<CartItem>) => {
-      const { id, title, price, quantity, imgs, img, panjang, lebar, selectedOptions } = action.payload;
-      
-      // LOGIKA BARU: Jika produknya custom (ada ukuran panjang/lebar atau pilihan atribut), 
-      // kita JANGAN gabungkan quantity-nya, melainkan buat baris baru di keranjang.
-      const isCustom = Number(panjang) > 0 || Object.keys(selectedOptions || {}).length > 0;
+  const newItem = action.payload;
+  
+  // Cari apakah item dengan ID yang sama sudah ada (sebagai dasar perbandingan)
+  const existingItem = state.items.find((item) => item.id === newItem.id);
 
-      const existingItem = state.items.find((item) => item.id === id);
+  // Jika produk custom, JANGAN PERNAH gabungkan quantity.
+  // Jika produk biasa, baru boleh gabungkan.
+  const isCustom = Number(newItem.panjang) > 0 || Object.keys(newItem.selectedOptions || {}).length > 0;
 
-      if (existingItem && !isCustom) {
-        // Jika produk umum (bukan custom), gabungkan jumlahnya
-        existingItem.quantity += quantity;
-      } else {
-        // Jika produk custom atau belum ada, tambahkan item baru
-        state.items.push({
-          id, // Jika nanti pakai DB, lebih baik pakai Date.now() sementara atau ID dari DB
-          title,
-          price,
-          quantity,
-          img,
-          panjang,
-          lebar,
-          selectedOptions,
-          imgs,
-        });
-      }
-    },
+  if (existingItem && !isCustom) {
+    existingItem.quantity += newItem.quantity;
+  } else {
+    // 🔥 PENTING: Gunakan spread operator (...) untuk memastikan kita membuat objek baru
+    state.items.push({ ...newItem }); 
+  }
+},
 
     removeItemFromCart: (state, action: PayloadAction<number>) => {
       const itemId = action.payload;
@@ -90,7 +80,27 @@ export const selectCartItems = (state: RootState) => state.cartReducer.items;
 
 export const selectTotalPrice = createSelector([selectCartItems], (items) => {
   return items.reduce((total, item) => {
-    return total + item.price * item.quantity;
+    // 1. Ambil harga dasar (sekarang ini adalah hargaPerMeter)
+    let price = Number(item.price || 0);
+
+    // 2. Tambah harga atribut
+    if (item.selectedOptions && typeof item.selectedOptions === 'object') {
+      Object.values(item.selectedOptions).forEach((opt: any) => {
+        price += Number(opt.additional_price || 0);
+      });
+    }
+
+    // 3. Kalkulasi Luas (SEKARANG DILAKUKAN SEKALI SAJA DI SINI)
+    const panjang = Number(item.panjang || 0);
+    const lebar = Number(item.lebar || 0);
+    let finalPricePerUnit = price;
+    
+    if (panjang > 0 && lebar > 0) {
+      const luasM2 = (panjang * lebar) / 10000;
+      finalPricePerUnit = luasM2 * price;
+    }
+
+    return total + (finalPricePerUnit * item.quantity);
   }, 0);
 });
 

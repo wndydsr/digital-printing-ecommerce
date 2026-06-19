@@ -1,5 +1,4 @@
 import React from "react";
-import Image from "next/image";
 import {
   User,
   ShoppingBag,
@@ -10,75 +9,51 @@ import {
 
 const OrderSteps = () => {
   const steps = [
-    {
-      icon: <User size={28} />,
-      title: "Login",
-      desc: "Masuk atau daftar akun.",
-    },
-    {
-      icon: <ShoppingBag size={28} />,
-      title: "Pilih Produk",
-      desc: "Pilih jenis dan spesifikasi produk.",
-    },
-    {
-      icon: <Upload size={28} />,
-      title: "Upload Desain",
-      desc: "Upload desain sendiri atau gunakan jasa desain kami.",
-    },
-    {
-      icon: <CreditCard size={28} />,
-      title: "Checkout",
-      desc: "Konfirmasi pesanan dan lakukan pembayaran.",
-    },
-    {
-      icon: <Truck size={28} />,
-      title: "Pengiriman",
-      desc: "Pesanan dikirim atau dapat diambil langsung.",
-    },
+    { icon: <User size={24} />, title: "Login", desc: "Masuk atau daftar akun." },
+    { icon: <ShoppingBag size={24} />, title: "Pilih Produk", desc: "Pilih jenis dan spesifikasi produk." },
+    { icon: <Upload size={24} />, title: "Upload Desain", desc: "Upload desain sendiri atau gunakan jasa kami." },
+    { icon: <CreditCard size={24} />, title: "Checkout", desc: "Konfirmasi pesanan dan lakukan pembayaran." },
+    { icon: <Truck size={24} />, title: "Pengiriman", desc: "Pesanan dikirim atau dapat diambil langsung." },
   ];
 
   return (
-    <section className="overflow-hidden">
+    <section className="py-12">
       <div className="max-w-[1170px] mx-auto px-4 sm:px-8 xl:px-0">
-        <div className="relative overflow-hidden rounded-xl">
+        <div className="text-center mb-10">
+          <h2 className="text-dark text-2xl font-bold mb-3">
+            Langkah-Langkah Order Online
+          </h2>
+          <p className="text-gray-500">Ikuti langkah mudah berikut untuk memesan produk kami.</p>
+        </div>
 
-          <Image
-            src="/images/shapes/newsletter-bg.jpg"
-            alt="background"
-            fill
-            className="absolute inset-0 object-cover -z-10"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          {steps.map((step, index) => (
+            <div
+              key={index}
+              className="
+                  bg-white
+                  border border-blue-100
+                  rounded-xl
+                  p-6
+                  text-center
+                  shadow-[0_4px_30px_rgba(59,130,246,0.12)]
+                  hover:shadow-[0_8px_30px_rgba(59,130,246,0.25)]
+                  hover:-translate-y-1
+                  transition-all
+                  duration-300
+                "
+            >
+              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                {step.icon}
+              </div>
 
-          <div className="absolute inset-0 bg-blue-900/80 -z-10"></div>
+              <h3 className="font-bold text-dark mb-2">{step.title}</h3>
 
-          <div className="py-4 px-6 lg:px-12">
-            <div className="text-center mb-8">
-              <h2 className="text-white text-2xl font-semibold mb-3">
-                Langkah-Langkah Order Online
-              </h2>
-
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {step.desc}
+              </p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-              {steps.map((step, index) => (
-                <div
-                  key={index}
-                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-5 text-center text-white hover:bg-white/15 transition"
-                >
-                  <div className="w-6 h-6 mx-auto mb-4 flex items-center justify-center rounded-full bg-blue-500">
-                    {step.icon}
-                  </div>
-
-                  <h3 className="font-bold mb-2">{step.title}</h3>
-
-                  <p className="text-sm text-white/75">
-                    {step.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-          </div>
+          ))}
         </div>
       </div>
     </section>

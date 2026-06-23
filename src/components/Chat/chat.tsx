@@ -1,11 +1,13 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Breadcrumb from "../Common/Breadcrumb";
+import { initEcho } from "@/lib/echo";
 
 // 🔥 TIPE DATA (SESUAIKAN DENGAN RESPONSE LARAVEL NANTI)
 interface ChatMessage {
   id: number;
-  sender: "customer" | "admin";
+  sender: "customer" | "desainer";
   message: string;
   created_at: string; // ISO date string
 }
@@ -84,31 +86,89 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 🔥 SIMULASI FETCH DATA AWAL (GANTI DENGAN API LARAVEL)
   useEffect(() => {
-    const loadDummyData = async () => {
-      setIsLoading(true);
+    initEcho(); // ← tambahkan ini
 
-      // contoh nanti:
-      // const res = await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/chat`, {
-      //   headers: { Authorization: `Bearer ${token}` },
-      // });
-      // const data = await res.json();
+    if (!orderId || !window.Echo) return;
 
-      await new Promise((resolve) => setTimeout(resolve, 300));
+    const channel = window.Echo.private(`chat.${orderId}`);
 
-      setOrderInfo(DUMMY_ORDER_INFO);
-      setDesignFiles(DUMMY_DESIGN_FILES);
-      setMessages(DUMMY_MESSAGES);
-      setIsLoading(false);
-    };
+    channel.listen('.MessageSent', (e: any) => {
+      console.log("Event diterima:", e);
+      const incomingMessage = e.message || e;
+      setMessages((prev) => {
+        if (prev.some(m => m.id === incomingMessage.id)) return prev;
+        return [...prev, incomingMessage];
+      });
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    });
 
-    loadDummyData();
+    return () => window.Echo?.leave(`chat.${orderId}`);
   }, [orderId]);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+useEffect(() => {
+  if (!orderId || !window.Echo) return;
+
+  console.log("Menghubungkan ke channel:", `chat.${orderId}`);
+
+  const channel = window.Echo.private(`chat.${orderId}`);
+
+ channel.listen('.MessageSent', (e: any) => {
+    console.log("🔥 PESAN DITERIMA DARI ECHO:", e);
+    
+    // Asumsi: Laravel mengirim data dibungkus dalam key 'message'
+    const incomingMessage = e.message || e;
+    
+    setMessages((prev) => {
+      // Mencegah duplikasi berdasarkan ID
+      if (prev.some(m => m.id === incomingMessage.id)) return prev;
+      return [...prev, incomingMessage];
+    });
+  });
+
+  return () => {
+    window.Echo.leave(`chat.${orderId}`);
+  };
+}, [orderId]);
+
+
+// 2. Load Data Awal dari Database Laravel
+useEffect(() => {
+  const loadData = async () => {
+    if (!orderId) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/messages`, {
+        headers: { 
+          "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          "Accept": "application/json"
+        },
+      });
+
+      if (!response.ok) throw new Error("Gagal mengambil pesan");
+
+      const data = await response.json();
+      
+      setMessages(data.reverse());
+      
+      // Anda juga bisa fetch orderInfo dari API di sini jika sudah ada endpoint-nya
+      setOrderInfo(DUMMY_ORDER_INFO); 
+      setDesignFiles(DUMMY_DESIGN_FILES);
+    } catch (err) {
+      console.error("Gagal memuat data chat:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  loadData();
+}, [orderId]); // useEffect ini akan jalan otomatis saat orderId tersedia
+
+// 3. Scroll ke bawah saat pesan bertambah
+useEffect(() => {
+  chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+}, [messages]);
 
   // 🔥 GROUP MESSAGE BERDASARKAN TANGGAL (UNTUK HEADER "17 APRIL 2023")
   const groupedMessages = messages.reduce((groups: Record<string, ChatMessage[]>, msg) => {
@@ -118,26 +178,39 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
     return groups;
   }, {});
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
+  const handleSendMessage = async () => {
+  if (!inputMessage.trim()) return;
+  const tempMessage = inputMessage;
+  setInputMessage("");
 
-    const newMessage: ChatMessage = {
-      id: Date.now(),
-      sender: "customer",
-      message: inputMessage.trim(),
-      created_at: new Date().toISOString(),
-    };
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem("token")}`
+      },
+      body: JSON.stringify({ message: tempMessage, sender: "customer" }),
+    });
 
-    // 🔥 SEMENTARA UPDATE STATE LOKAL, NANTI GANTI POST KE LARAVEL:
-    // await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/chat`, {
-    //   method: "POST",
-    //   headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    //   body: JSON.stringify({ message: inputMessage.trim() }),
-    // });
+    if (!response.ok) throw new Error("Gagal kirim");
 
-    setMessages((prev) => [...prev, newMessage]);
-    setInputMessage("");
-  };
+    // Refetch seperti desainer, agar konsisten
+    const fetchResponse = await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/messages`, {
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("token")}`,
+        "Accept": "application/json"
+      }
+    });
+    const data = await fetchResponse.json();
+    setMessages(data.reverse());
+
+  } catch (error) {
+    console.error("Gagal mengirim pesan:", error);
+    setInputMessage(tempMessage);
+  }
+};
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -179,35 +252,9 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
   const badge = STATUS_BADGE[orderInfo.status];
 
   return (
+     <>
+      <Breadcrumb title="Chat Desainer" pages={["chat"]} />
     <div className="flex flex-col h-screen bg-white">
-      {/* ==================== HEADER ==================== */}
-      <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-gray-3">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            aria-label="kembali"
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-1 text-dark hover:bg-gray-2 ease-out duration-150"
-          >
-            <svg className="fill-current" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            </svg>
-          </button>
-
-          <h1 className="font-bold text-lg sm:text-xl text-dark">
-            Diskusi Desain{" "}
-            <span className="ml-1 inline-block text-custom-xs font-semibold text-blue bg-blue-light-5 px-2.5 py-1 rounded-full align-middle">
-              {orderInfo.order_code}
-            </span>
-          </h1>
-        </div>
-
-        <button
-          onClick={() => router.push(`/pesanan-saya/${orderId}`)}
-          className="text-sm font-medium text-blue hover:text-blue-dark hidden sm:inline-block"
-        >
-          Detail Pesanan
-        </button>
-      </div>
 
       {/* ==================== BODY: CHAT + SIDEBAR ==================== */}
       <div className="flex flex-1 overflow-hidden">
@@ -230,11 +277,11 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
                   </span>
                 </div>
 
-                {msgs.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender === "customer" ? "justify-end" : "justify-start"}`}
-                  >
+                {msgs.map((msg, index) => (
+                      <div
+                        key={`${msg.id}-${index}`} // Menggabungkan ID dan Index agar selalu unik
+                        className={`flex ${msg.sender === "customer" ? "justify-end" : "justify-start"}`}
+                      >
                     <div
                       className={`max-w-[75%] sm:max-w-[60%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                         msg.sender === "customer"
@@ -282,22 +329,6 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
 
           {/* Riwayat File Desain */}
           <h2 className="font-bold text-base text-dark mt-7 mb-3">Riwayat File Desain</h2>
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full border-2 border-dashed border-blue/40 rounded-xl py-3.5 text-sm font-semibold text-blue hover:bg-blue-light-5 ease-out duration-150"
-          >
-            Upload File Desain
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.ai,.cdr,.psd,.jpg,.png,.zip,.rar"
-            onChange={handleUploadDesignFile}
-            className="hidden"
-          />
-
           <div className="space-y-3 mt-4">
             {designFiles.length === 0 ? (
               <p className="text-xs text-dark-4 italic">Belum ada file desain.</p>
@@ -369,6 +400,7 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
         </button>
       </div>
     </div>
+     </>
   );
 };
 

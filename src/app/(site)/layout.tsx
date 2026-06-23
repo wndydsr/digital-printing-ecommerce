@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import "../css/euclid-circular-a-font.css";
 import "../css/style.css";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import "@/lib/echo";
 
 import { ModalProvider } from "../context/QuickViewModalContext";
 import { CartModalProvider } from "../context/CartSidebarModalContext";
@@ -23,6 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const [loading, setLoading] = useState<boolean>(true);
+  const pathname = usePathname();
+  const isChatPage = pathname.includes('/chat');
 
   useEffect(() => {
     setTimeout(() => setLoading(false), 1000);
@@ -39,7 +43,7 @@ export default function RootLayout({
               <CartModalProvider>
                 <ModalProvider>
                   <PreviewSliderProvider>
-                    <Header />
+                     <Header />
                     {children}
 
                     <QuickViewModal />
@@ -51,7 +55,8 @@ export default function RootLayout({
               <ChatBotWidget />
             </ReduxProvider>
             <ScrollToTop />
-            <Footer />
+            {!isChatPage && <Footer />}
+           
           </>
         )}
       </body>

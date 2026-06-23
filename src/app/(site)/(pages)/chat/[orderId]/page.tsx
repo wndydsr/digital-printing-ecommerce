@@ -1,16 +1,18 @@
-import React from "react";
 import ChatDesainer from "@/components/Chat/chat";
 
 type Props = {
-  params: { orderId: string };
+  params: Promise<{ orderId: string }>; // Params sekarang adalah Promise
 };
 
 export const metadata = {
   title: "Diskusi Desain | Pesanan Saya",
 };
 
-const ChatDesainerPage = ({ params }: Props) => {
-  return <ChatDesainer orderId={params.orderId} />;
+const ChatDesainerPage = async ({ params }: Props) => {
+  // Tunggu params sebelum diakses
+  const { orderId } = await params;
+  
+  return <ChatDesainer orderId={orderId} />;
 };
 
 export default ChatDesainerPage;

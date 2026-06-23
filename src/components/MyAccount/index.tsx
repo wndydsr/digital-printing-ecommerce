@@ -25,7 +25,7 @@ const MyAccount = () => {
   useEffect(() => {
     const fetchCustomer = async () => {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://127.0.0.1:8000/api/me", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/me`, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
       const data = await res.json();
@@ -42,7 +42,7 @@ const MyAccount = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://127.0.0.1:8000/api/customer/profile", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/customer/profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name, phone, address }),
@@ -58,7 +58,7 @@ const MyAccount = () => {
   const handleLogout = async () => {
     const token = localStorage.getItem("token");
     try {
-      await fetch("http://127.0.0.1:8000/api/logout", {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/logout`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });

@@ -15,8 +15,8 @@ const ProductItem = ({ item }: { item: any }) => { // Gunakan 'any' atau sesuaik
     ...item, 
     // Pastikan gambar di-mapping agar QuickView bisa menampilkan preview
     imgs: {
-      previews: [`http://127.0.0.1:8000/storage/${item.photo}`],
-      thumbnails: [`http://127.0.0.1:8000/storage/${item.photo}`],
+      previews: [`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.photo}`],
+      thumbnails: [`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.photo}`],
     },
   };
   

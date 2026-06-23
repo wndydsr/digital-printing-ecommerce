@@ -90,7 +90,7 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
       setIsLoading(true);
 
       // contoh nanti:
-      // const res = await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/chat`, {
+      // const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/orders/${orderId}/chat`, {
       //   headers: { Authorization: `Bearer ${token}` },
       // });
       // const data = await res.json();
@@ -129,7 +129,7 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
     };
 
     // 🔥 SEMENTARA UPDATE STATE LOKAL, NANTI GANTI POST KE LARAVEL:
-    // await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/chat`, {
+    // await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/orders/${orderId}/chat`, {
     //   method: "POST",
     //   headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     //   body: JSON.stringify({ message: inputMessage.trim() }),
@@ -153,7 +153,7 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
     // 🔥 NANTI: upload file ke Laravel via FormData
     // const formData = new FormData();
     // formData.append("design_file", file);
-    // await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/design-files`, { method: "POST", body: formData, headers: { Authorization: `Bearer ${token}` } });
+    // await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/orders/${orderId}/design-files`, { method: "POST", body: formData, headers: { Authorization: `Bearer ${token}` } });
 
     const newFile: DesignFile = {
       id: Date.now(),

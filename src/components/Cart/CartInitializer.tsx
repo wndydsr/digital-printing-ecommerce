@@ -23,7 +23,7 @@ export default function CartInitializer() {
           const customer = JSON.parse(customerStr);
           
           // Memanggil API Keranjang milik customer ini
-          const res = await fetch(`http://127.0.0.1:8000/api/cart/${customer.id}`, {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/cart/${customer.id}`, {
             method: "GET",
             headers: {
               "Accept": "application/json",
@@ -48,11 +48,11 @@ export default function CartInitializer() {
       lebar: item.lebar || 0,
       selectedOptions: item.selected_options || {},
       img: item.product?.photo 
-        ? (item.product.photo.startsWith("http") ? item.product.photo : `http://127.0.0.1:8000/storage/${item.product.photo}`) 
+        ? (item.product.photo.startsWith("http") ? item.product.photo : `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.product.photo}`) 
         : "/placeholder.png",
       imgs: {
-        previews: [item.product?.photo ? `http://127.0.0.1:8000/storage/${item.product.photo}` : "/placeholder.png"],
-        thumbnails: [item.product?.photo ? `http://127.0.0.1:8000/storage/${item.product.photo}` : "/placeholder.png"]
+        previews: [item.product?.photo ? `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.product.photo}` : "/placeholder.png"],
+        thumbnails: [item.product?.photo ? `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.product.photo}` : "/placeholder.png"]
       }
     }));
 

@@ -130,7 +130,7 @@ const Checkout = () => {
       });
 
       const token = localStorage.getItem("token");
-      const res = await fetch("http://127.0.0.1:8000/api/orders", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/orders`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -145,7 +145,7 @@ const Checkout = () => {
         sessionStorage.removeItem("directCheckoutItem");
       } else {
         for (const item of cartItems) {
-          const deleteRes = await fetch(`http://127.0.0.1:8000/api/cart/item/${item.id}`, {
+          const deleteRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/cart/item/${item.id}`, {
             method: "DELETE",
             headers: { 
                 "Authorization": `Bearer ${token}`,

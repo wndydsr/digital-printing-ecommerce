@@ -10,7 +10,7 @@ const NewArrival = () => {
   const [products, setProducts] = useState([]);
 
     useEffect(() => {
-      fetch("http://127.0.0.1:8000/api/public/products")
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/public/products`)
         .then((res) => res.json())
         .then((data) => setProducts(data))
         .catch((err) => console.error(err));
@@ -71,8 +71,8 @@ const NewArrival = () => {
                 price: item.price,
                 // Mapping gambar agar sinkron dengan yang dibutuhkan ProductItem
                 imgs: {
-                  previews: [`http://127.0.0.1:8000/storage/${item.photo}`],
-                  thumbnails: [`http://127.0.0.1:8000/storage/${item.photo}`],
+                  previews: [`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.photo}`],
+                  thumbnails: [`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.photo}`],
                 },
               }}
             />

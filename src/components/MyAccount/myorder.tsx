@@ -94,7 +94,7 @@ const getOrderStatus = (stageId: number) => {
 
       try {
         const res = await fetch(
-          `http://127.0.0.1:8000/api/orders/customer/${customer.id}`,
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/orders/customer/${customer.id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -210,7 +210,7 @@ const getOrderStatus = (stageId: number) => {
                                 <img
                                   src={
                                     item.product?.photo
-                                      ? `http://127.0.0.1:8000/storage/${item.product.photo}`
+                                      ? `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.product.photo}`
                                       : "/placeholder.png"
                                   }
                                   alt={item.product?.name}

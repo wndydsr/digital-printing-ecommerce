@@ -11,7 +11,7 @@ const SingleItem = ({ item, removeItemFromCart }) => {
     try {
       // 🔥 1. Hapus dari Database Laravel (Berdasarkan ID Item/Produk)
       // Asumsi: endpoint delete membutuhkan ID produk atau ID cart item
-      await fetch(`http://127.0.0.1:8000/api/cart/item/${item.id}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/cart/item/${item.id}`, {
         method: "DELETE",
         headers: {
           "Accept": "application/json",

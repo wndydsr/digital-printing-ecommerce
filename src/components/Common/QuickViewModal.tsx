@@ -67,7 +67,7 @@ const QuickViewModal = () => {
   const photoUrl = product?.photo
     ? product.photo.startsWith("http")
       ? product.photo
-      : `http://127.0.0.1:8000/storage/${product.photo}`
+      : `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${product.photo}`
     : "/placeholder.png";
 
   const productImages = [photoUrl];
@@ -150,7 +150,7 @@ const QuickViewModal = () => {
       try {
         const payload = createCartPayload(customer.id);
 
-        const res = await fetch("http://127.0.0.1:8000/api/cart", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/cart`, {
           method: "POST",
           headers: { 
             "Authorization": `Bearer ${token}` 
@@ -204,7 +204,7 @@ const QuickViewModal = () => {
       try {
         const payload = createCartPayload(customer.id);
 
-        const res = await fetch("http://127.0.0.1:8000/api/cart", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/cart`, {
           method: "POST",
           headers: { 
             "Authorization": `Bearer ${token}` 

@@ -39,7 +39,7 @@ const ShopWithSidebar = () => {
 
   // Mengambil data produk aktif dari API Laravel
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/public/products")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/public/products`)
       .then((res) => res.json())
       .then((data) => setProducts(data))
       .catch((err) => console.error(err));
@@ -182,8 +182,8 @@ const ShopWithSidebar = () => {
                         description: item.description, // 🔥 2. DESKRIPSI IKUT MASUK KE REDUX QUICK VIEW
                         category: item.category,       // 🔥 3. DATA KATEGORI UTUH IKUT MASUK
                         imgs: {
-                          previews: [`http://127.0.0.1:8000/storage/${item.photo}`],
-                          thumbnails: [`http://127.0.0.1:8000/storage/${item.photo}`],
+                          previews: [`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.photo}`],
+                          thumbnails: [`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.photo}`],
                         },
                       }}
                     />

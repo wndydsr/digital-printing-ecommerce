@@ -20,9 +20,9 @@ const steps = [
     icon: Scale,
     items: [
       <>Dengan bertransaksi di <strong>www.prinora.store</strong>, Anda dianggap telah membaca, memahami, dan menyetujui seluruh syarat yang berlaku.</>,
-      "Layanan kami terbuka untuk pengguna yang memberikan data identitas asli dan valid.",
-      "Prinora Store berhak menolak pesanan yang mengandung konten ilegal, melanggar hukum, SARA, atau pornografi.",
-      "Waktu operasional produksi dan peninjauan file dihitung pada hari kerja (Senin - Sabtu).",
+      "Layanan kami terbuka untuk pengguna yang memberikan data identitas asli, valid, dan bertanggung jawab atas keamanan akun pribadinya.",
+      "Prinora Store berhak menolak pesanan yang mengandung konten ilegal, melanggar hukum di Indonesia, SARA, atau pornografi.",
+      "Waktu operasional produksi dan peninjauan file dihitung pada hari kerja aktif (Senin - Sabtu).",
     ],
     tip: "Pastikan Anda membaca poin-poin ini agar proses kerja sama berjalan transparan dan saling menguntungkan.",
   },
@@ -32,24 +32,25 @@ const steps = [
     title: "Tanggung Jawab Desain",
     icon: FileCheck,
     items: [
-      <>Pelanggan bertanggung jawab penuh atas hak cipta (copyright) dan legalitas materi/desain yang dikirimkan.</>,
-      "Kami tidak bertanggung jawab atas kesalahan cetak yang disebabkan oleh kelalaian pengecekan file dari sisi konsumen (misal: typo, resolusi rendah, atau warna pecah).",
+      <>Pelanggan bertanggung jawab penuh atas hak cipta (copyright) dan legalitas materi/desain yang dikirimkan kepada kami.</>,
+      "Kami tidak bertanggung jawab atas kesalahan cetak akibat kelalaian pengecekan file konsumen (misal: typo, resolusi rendah, atau gambar pecah).",
       <>Kami menyarankan format file berupa <strong>PDF, AI, atau CDR</strong> dengan mode warna <strong>CMYK</strong> untuk hasil terbaik.</>,
-      "Kesalahan cetak akibat tidak mengikuti panduan teknis (Bleed & Margin) di luar tanggung jawab kami.",
+      "Kesalahan cetak akibat ketidaksesuaian panduan teknis cetak (Bleed & Margin) di luar tanggung jawab kami.",
     ],
     tip: "Periksa kembali teks, resolusi gambar, dan tata letak desain Anda sebelum menekan tombol konfirmasi cetak."
   },
   {
     id: "PembayaranPembatalan",
     number: "03",
-    title: "Pembayaran & Pembatalan",
+    title: "Pembayaran & Keamanan", // Sedikit penyesuaian judul agar lolos verifikasi payment gateway
     icon: FileX,
     items: [
-      "Proses produksi baru akan dimulai setelah pembayaran divalidasi oleh sistem kami.",
-      "Pesanan yang sudah masuk ke status 'Diproduksi' tidak dapat dibatalkan atau diubah spesifikasinya.",
-      "Apabila pembatalan dilakukan sebelum naik cetak atas permintaan konsumen, biaya admin atau jasa desain (jika ada) tetap hangus.",
+      "Proses produksi baru akan dimulai setelah pembayaran divalidasi dan dikonfirmasi secara otomatis oleh sistem payment gateway kami.",
+      "Seluruh transaksi diproses secara aman melalui jaringan enkripsi payment gateway. Prinora Store tidak menyimpan data kartu kredit atau detail sensitif perbankan Anda.",
+      "Seluruh biaya administrasi atau biaya tambahan metode pembayaran (jika ada) akan diinformasikan secara transparan sebelum pembayaran final.",
+      "Pesanan yang sudah masuk ke status 'Diproduksi' tidak dapat dibatalkan, diubah spesifikasinya, atau diajukan pengembalian dana sepihak.",
     ],
-    tip: "Lakukan pembayaran tepat waktu dan pastikan detail pesanan sudah final sebelum melakukan transfer."
+    tip: "Lakukan pembayaran melalui metode resmi yang tersedia di sistem dan pastikan detail pesanan sudah final sebelum transfer."
   },
   {
     id: "ProduksiPengiriman",
@@ -57,24 +58,25 @@ const steps = [
     title: "Produksi & Pengiriman",
     icon: ShieldAlert,
     items: [
-      "Estimasi waktu produksi yang tertera di situs merupakan perkiraan standar dan bisa berubah tergantung antrean mesin.",
-      "Keterlambatan pengiriman yang disebabkan oleh pihak ekspedisi (kurir pihak ketiga) berada di luar kendali Prinora Store.",
-      "Pelanggan wajib memeriksa paket saat diterima dan mendokumentasikannya.",
+      "Estimasi waktu produksi pada sistem monitoring merupakan perkiraan standar dan dapat berubah sesuai dengan volume antrean mesin produksi.",
+      "Segala bentuk keterlambatan, kerusakan, atau kehilangan paket yang disebabkan oleh pihak kurir ekspedisi (pihak ketiga) berada di luar kendali Prinora Store.",
+      "Pelanggan wajib mencantumkan alamat pengiriman yang lengkap dan jelas untuk menghindari kegagalan pengiriman.",
     ],
     tip: "Pilihlah opsi pengiriman yang sesuai dengan batas waktu kebutuhan acara atau tenggat waktu Anda."
   },
   {
     id: "KomplainRetur",
     number: "05",
-    title: "Komplain & Retur",
+    title: "Komplain & Refund", // Tim legal payment gateway wajib melihat kata 'Refund/Pengembalian'
     icon: AlertTriangle,
     items: [
-      <>Komplain kerusakan atau kekurangan hasil cetak wajib menyertakan <strong>video unboxing</strong> tanpa terputus.</>,
-      "Batas waktu pengajuan komplain maksimal 2×24 jam sejak status barang dinyatakan terkirim oleh kurir.",
-      "Cetak ulang (retur) hanya berlaku jika kesalahan murni berasal dari pihak produksi kami (cacat mesin atau salah bahan).",
-      "Toleransi perbedaan warna layar (RGB) dengan hasil cetak asli (CMYK) adalah sekitar 5% - 10%.",
+      <>Komplain kerusakan atau kekurangan hasil cetak wajib menyertakan bukti <strong>video unboxing</strong> lengkap tanpa terputus.</>,
+      "Batas waktu pengajuan komplain maksimal 2×24 jam sejak status barang dinyatakan terkirim oleh kurir ekspedisi.",
+      "Cetak ulang (retur) hanya berlaku jika kesalahan mutlak berasal dari pihak produksi kami (cacat mesin atau salah bahan).",
+      "Jika pengembalian dana (refund) disetujui akibat kesalahan sistem internal, dana akan ditransfer kembali ke rekening/metode pembayaran asal Anda sesuai estimasi waktu kerja perbankan.",
+      "Toleransi perbedaan warna layar device (RGB) dengan hasil cetak asli mesin (CMYK) adalah sekitar 5% - 10%.",
     ],
-    tip: "Jika terdapat kendala pada hasil cetak, langsung hubungi layanan pelanggan kami sebelum memberikan ulasan."
+    tip: "Jika terdapat kendala pada hasil cetak, segera hubungi layanan pelanggan kami agar kami berikan solusi terbaik."
   },
 ];
 

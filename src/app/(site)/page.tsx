@@ -2,8 +2,8 @@ import Home from "@/components/Home";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Tugas Akhir",
-  description: "This is Home for NextCommerce Template",
+  title: "Prinora | Cetak Online",
+  description: "Ini adalah Platform Percetakan Online",
   // other metadata
 };
 

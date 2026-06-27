@@ -132,7 +132,7 @@ const Footer = () => {
         <div className="max-w-[1170px] mx-auto px-4 sm:px-8 xl:px-0">
           <div className="text-center">
             <p className="text-dark font-medium text-sm">
-              &copy; {year} PrintOra. All rights reserved.
+              &copy; {year} PrinOra. All rights reserved.
             </p>
           </div>
         </div>

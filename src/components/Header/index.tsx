@@ -106,7 +106,7 @@ const Header = () => {
             <div className="xl:w-auto flex-col sm:flex-row w-full flex sm:justify-between sm:items-center gap-5 sm:gap-10">
               <Link className="flex-shrink-0" href="/">
                 <Image
-                  src="/images/logo/logo.png"
+                  src="/images/logo/prinora.png"
                   alt="Logo"
                   width={219}
                   height={36}
@@ -158,7 +158,7 @@ const Header = () => {
                     What's App
                   </span>
                   <p className="font-medium text-custom-sm text-dark">
-                    08123456789
+                    08985636138
                   </p>
                 </div>
               </div>

@@ -202,7 +202,7 @@ const PaymentContent = () => {
                 </div>
 
                 <a 
-                  href="https://wa.me/08123456789" // Ganti dengan no WA asli
+                  href="https://wa.me/08985636138" // Ganti dengan no WA asli
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full flex justify-center items-center gap-2 font-medium text-green-600 bg-green-50 border border-green-200 py-3 rounded-md hover:bg-green-100 transition-colors"

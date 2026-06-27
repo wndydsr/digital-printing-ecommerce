@@ -10,7 +10,7 @@ interface ChatMessage {
   sender: "customer" | "desainer";
   message: string;
   file?: string; // Path file desain dari storage backend
-  is_design?: boolean | number | string; // Tambahkan tipe penampung dinamis database
+  is_design?: boolean | number | string; // Mengantisipasi tipe data dinamis database
   created_at: string; // ISO date string
 }
 
@@ -72,7 +72,7 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-// 1. Integrasi Echo Laravel (Real-time Handler di dalam chat.tsx)
+  // 1. Integrasi Echo Laravel (Real-time Handler)
   useEffect(() => {
     initEcho();
 
@@ -80,8 +80,8 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
 
     const channel = window.Echo.private(`chat.${orderId}`);
 
-    // 🔥 Fungsi untuk mengambil data chat paling valid langsung dari database Laravel
-    const fetchPesanTerbaru = async () => {
+    // 🔥 FIX 1: Fungsi Sync Menggunakan Parameter orderId yang Valid Secara Dinamis
+    const syncPesanTerbaru = async () => {
       try {
         const responseMessages = await fetch(`${API_URL}/api/orders/${orderId}/messages`, {
           headers: { 
@@ -91,7 +91,7 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
         });
         if (responseMessages.ok) {
           const dataMessages = await responseMessages.json();
-          setMessages(dataMessages.reverse()); // Menimpa state lama dengan data gambar yang valid dari DB
+          setMessages(dataMessages.reverse()); // Paksa gambar ter-render instan dari database
         }
       } catch (err) {
         console.error("Gagal sinkronisasi data gambar real-time:", err);
@@ -102,17 +102,20 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
       console.log("🔥 PESAN DITERIMA DARI ECHO:", e);
       const incomingMessage = e.message || e;
       
-      // 🛠️ PAKSA FETCH ULANG jika pengirim adalah desainer atau mengandung indikasi file pratinjau
+      // 🛠️ Normalisasi tipe data is_design dari payload WebSocket
+      if (incomingMessage.is_design === 1 || incomingMessage.is_design === "1") {
+        incomingMessage.is_design = true;
+      }
+
       const dariDesainer = incomingMessage.sender === "desainer";
       const indikasiGambar = incomingMessage.file || 
                              incomingMessage.is_design || 
                              (incomingMessage.message && incomingMessage.message.includes("pratinjau desain"));
 
       if (dariDesainer || indikasiGambar) {
-        // Langsung tembak database untuk mengambil path 'file' yang utuh dan valid
-        fetchPesanTerbaru();
+        // Jalankan sinkronisasi database instan tanpa perlu reload manual browser
+        syncPesanTerbaru();
       } else {
-        // Jika hanya pesan teks biasa dari customer sendiri, masukkan ke list secara normal
         setMessages((prev) => {
           if (prev.some(m => m.id === incomingMessage.id)) return prev;
           return [...prev, incomingMessage];
@@ -127,7 +130,7 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
     return () => {
       window.Echo.leave(`chat.${orderId}`);
     };
-  }, [orderId]);
+  }, [orderId, API_URL]);
 
  // 2. Load Data Awal dari Database Laravel
   useEffect(() => {
@@ -136,7 +139,6 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
       
       setIsLoading(true);
       try {
-        // Fetch Riwayat Pesan Chat
         const responseMessages = await fetch(`${API_URL}/api/orders/${orderId}/messages`, {
           headers: { 
             "Authorization": `Bearer ${localStorage.getItem("token")}`,
@@ -148,7 +150,6 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
         const dataMessages = await responseMessages.json();
         setMessages(dataMessages.reverse());
         
-        // 🔹 FETCH DATA ORDER ASLI DARI DATABASE (BUKAN DUMMY)
         const responseOrder = await fetch(`${API_URL}/api/orders/${orderId}`, {
           headers: {
             "Authorization": `Bearer ${localStorage.getItem("token")}`,
@@ -166,7 +167,6 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
 
           const firstItem = orderData.items?.[0];
           
-          // Format ukuran dinamis dari panjang & lebar tanpa desimal .00
           let ukuranDisplay = "Ukuran Kustom";
           if (firstItem && firstItem.panjang && firstItem.lebar) {
             const panjangClean = Number(firstItem.panjang);
@@ -191,7 +191,7 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
     };
 
     loadData();
-  }, [orderId]);
+  }, [orderId, API_URL]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -204,16 +204,14 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
     return groups;
   }, {});
 
-  // 🔹 Ambil riwayat file desain secara dinamis dari tabel messages yang memiliki file
   const designFilesFromMessages = messages.filter((msg) => msg.file);
 
   const handleSendMessage = async () => {
-      if (!inputMessage.trim()) return;
-      // 🔒 Cegah pengiriman jika status sudah siap cetak / selesai
-      if (orderInfo?.status === "siap_cetak" || orderInfo?.status === "selesai") return;
+    if (!inputMessage.trim()) return;
+    if (orderInfo?.status === "siap_cetak" || orderInfo?.status === "selesai") return;
 
-  const tempMessage = inputMessage;
-      setInputMessage("");
+    const tempMessage = inputMessage;
+    setInputMessage("");
 
     try {
       const response = await fetch(`${API_URL}/api/orders/${orderId}/messages`, {
@@ -258,7 +256,6 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
       const resData = await response.json();
 
       if (!response.ok) {
-        // 🔥 Tangkap langsung pesan error asli jika ada Exception SQL di backend
         throw new Error(resData.message || "Gagal menyetujui desain");
       }
 
@@ -354,7 +351,6 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
                   {msgs.map((msg, index) => {
                     const isCustomer = msg.sender === "customer";
 
-                    // 🛠️ FIX: PINDAHKAN EVALUASI LOGIKA KE DALAM .map AGAR SETIAP BUBBLE CHAT TER-RENDER SECARA VALID
                     const memilikiFile = msg.file && msg.file.trim() !== "";
                     const merupakanDesain = msg.is_design === true || String(msg.is_design) === "1";
 
@@ -372,7 +368,7 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
                                 src={`${ASSET_URL}/storage/${msg.file}`} 
                                 alt="Kiriman Desain" 
                                 className="w-full h-44 object-cover border-b border-gray-2 cursor-pointer hover:opacity-90 transition-opacity"
-                                onClick={() => setPreviewImage(`${ASSET_URL}/storage/${msg.file}`)}
+                                onClick={() => setPreviewImage(`${ASSET_URL}/storage/${msg.file}`)} 
                                 onError={(e) => console.error("Gambar gagal dimuat:", e.currentTarget.src)}
                               />
                               
@@ -460,10 +456,11 @@ const ChatDesainer = ({ orderId }: { orderId: string }) => {
                     onClick={() => setPreviewImage(`${ASSET_URL}/storage/${msgItem.file}`)}
                     className="flex items-center gap-3 border border-gray-3 rounded-xl px-3.5 py-3 bg-white hover:border-blue cursor-pointer transition-colors group"
                   >
+                    {/* 🔥 FIX 2: SINTAKS SVG YANG EROR PADA PRODUCTION SUDAH BERHASIL DIBERSIHKAN */}
                     <div className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-light-5 text-blue shrink-0">
-                      <svg className="fill-current" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" fill="none" />
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11"></polyline>
                       </svg>
                     </div>
                     <div className="overflow-hidden flex-1">

@@ -49,11 +49,6 @@ const SingleGridItem = ({ item }: { item: Product }) => {
       <h3 className="font-medium text-dark ease-out duration-200 group-hover:text-blue mb-1.5">
         {item.title}
       </h3>
-
-      {/* Harga Produk */}
-      <span className="flex items-center gap-2 font-medium text-lg">
-        Rp {Number(item.price).toLocaleString("id-ID")}
-      </span>
     </div>
   );
 };

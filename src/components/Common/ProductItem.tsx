@@ -42,10 +42,6 @@ const ProductItem = ({ item }: { item: any }) => { // Gunakan 'any' atau sesuaik
       <h3 className="font-medium text-dark ease-out duration-200 group-hover:text-blue mb-1.5">
         {item.title}
       </h3>
-
-      <span className="flex items-center gap-2 font-medium text-lg text-blue-600">
-        Rp {Number(item.price || 0).toLocaleString("id-ID")}
-      </span>
     </div>
   );
 };

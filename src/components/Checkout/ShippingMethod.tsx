@@ -23,7 +23,7 @@ const ShippingMethod = ({ shippingMethod, setShippingMethod }: ShippingMethodPro
             onChange={() => setShippingMethod("pickup")}
           />
           <div className={`h-4 w-4 rounded-full border-4 ${shippingMethod === "pickup" ? "border-blue" : "border-gray-4"}`} />
-          <span>Ambil di Toko (Free)</span>
+          <span>Ambil di Toko</span>
         </label>
 
         {/* Opsi Pesan Antar */}
@@ -35,7 +35,7 @@ const ShippingMethod = ({ shippingMethod, setShippingMethod }: ShippingMethodPro
             onChange={() => setShippingMethod("delivery")}
           />
           <div className={`h-4 w-4 rounded-full border-4 ${shippingMethod === "delivery" ? "border-blue" : "border-gray-4"}`} />
-          <span>Pesan Antar (Rp 20.000)</span>
+          <span>Pesan Antar</span>
         </label>
       </div>
     </div>

@@ -4,10 +4,15 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import { useAppSelector, AppDispatch } from "@/redux/store";
+import { removeItemFromCart } from "@/redux/features/cart-slice";
+import { directDirectFileCache } from "@/components/Common/QuickViewModal"; // Import dari QuickViewModal
 
 const PaymentContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const amount = searchParams.get("amount") || "0";
   
   const [paymentMethod, setPaymentMethod] = useState("qris");
@@ -17,6 +22,15 @@ const PaymentContent = () => {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
+
+  // Ambil data sementara dari sessionStorage saat halaman dimuat
+  useEffect(() => {
+    const data = sessionStorage.getItem("pendingCheckoutData");
+    if (data) {
+      setPendingOrderData(JSON.parse(data));
+    }
+  }, []);
 
   // Format Countdown Timer
   useEffect(() => {
@@ -42,27 +56,101 @@ const PaymentContent = () => {
     }
   };
 
-  // Handler untuk submit bukti
-  const handleUploadSubmit = () => {
+  // 🔥 HANDLER UTAMA UNTUK BUAT ORDER SEKALIGUS KIRIM BUKTI
+const handleUploadSubmit = async () => {
     if (!file) {
       alert("Pilih gambar bukti pembayaran terlebih dahulu!");
+      return;
+    }
+
+    if (!pendingOrderData) {
+      alert("Data pesanan tidak ditemukan. Silakan checkout ulang.");
       return;
     }
     
     setIsUploading(true);
     
-    // Simulasi proses upload (Nanti diganti dengan fetch API ke backend Laravel)
-    setTimeout(() => {
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+
+      const designMethod = pendingOrderData.design_method || "ready-to-print";
+      const targetStageId = designMethod === "ready-to-print" ? "2" : "1";
+
+      formData.append("customer_id", pendingOrderData.customer_id);
+      formData.append("total_price", pendingOrderData.total_price);
+      formData.append("current_stage_id", targetStageId); 
+      formData.append("design_method", designMethod);
+      formData.append("shipping_method", pendingOrderData.shipping_method);
+      formData.append("shipping_cost", pendingOrderData.shipping_cost);
+      formData.append("payment_proof", file); // Bukti bayar
+      formData.append("payment_method", paymentMethod);
+
+      pendingOrderData.items.forEach((item: any, index: number) => {
+        formData.append(`items[${index}][product_id]`, item.product_id);
+        formData.append(`items[${index}][quantity]`, item.quantity);
+        formData.append(`items[${index}][panjang]`, item.panjang);
+        formData.append(`items[${index}][lebar]`, item.lebar);
+        formData.append(`items[${index}][need_design]`, item.need_design);
+        
+        // 🔥 JATUH KAN JARING PENGAMAN UTAMA: Inject File Cetak Asli untuk Jalur Beli Langsung
+        if (pendingOrderData.is_direct) {
+          if (designMethod === "ready-to-print" && directDirectFileCache.readyDesignFile) {
+            // Pasangkan file master ke key design_file (dikemas dalam bentuk array sesuai perilaku req backend)
+            formData.append(`items[${index}][design_file][]`, directDirectFileCache.readyDesignFile);
+          } else if (designMethod === "need-design" && directDirectFileCache.supportFiles.length > 0) {
+            directDirectFileCache.supportFiles.forEach((supFile) => {
+              formData.append(`items[${index}][reference_files][]`, supFile);
+            });
+          }
+        }
+
+        if (item.dummy_file_name) {
+          formData.append(`items[${index}][dummy_file_name]`, item.dummy_file_name);
+        }
+
+        if (item.attributes && Array.isArray(item.attributes)) {
+          item.attributes.forEach((attrId: string) => {
+            formData.append(`items[${index}][attributes][]`, attrId);
+          });
+        }
+      });
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/orders`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Accept": "application/json",
+        },
+        body: formData, // Mengirim data multipart/form-data utuh ke Laravel
+      });
+
+      if (!res.ok) throw new Error("Gagal memproses pesanan di server.");
+
+      // Bersihkan cache memori setelah berhasil transaksi
+      directDirectFileCache.readyDesignFile = null;
+      directDirectFileCache.supportFiles = [];
+
+      if (pendingOrderData.is_direct) {
+        sessionStorage.removeItem("directCheckoutItem");
+      } else {
+        // Hapus item keranjang jika via keranjang...
+      }
+
+      sessionStorage.removeItem("pendingCheckoutData");
+      alert("Bukti pembayaran berhasil diunggah! Pesanan masuk ke sistem.");
+      router.push("/my-account?tab=orders");
+
+    } catch (error) {
+      console.error(error);
+      alert("Terjadi kesalahan jaringan.");
+    } finally {
       setIsUploading(false);
-      alert("Bukti pembayaran berhasil diunggah! Pesanan Anda akan segera diproses.");
-      router.push("/my-account?tab=orders"); // Arahkan ke sini!
-      // Di sini bisa ditambahkan router.push('/order-success') atau ke dashboard akun
-    }, 1500);
+    }
   };
 
   return (
     <section className="py-20 bg-gray-2 min-h-screen flex items-center justify-center mt-10">
-      {/* 🔥 Diperlebar menjadi max-w-[900px] agar pas di Desktop */}
       <div className="max-w-[900px] w-full mx-auto px-4">
         <div className="bg-white shadow-1 rounded-[10px] p-6 sm:p-10 text-center">
           
@@ -81,14 +169,13 @@ const PaymentContent = () => {
             </p>
           </div>
 
-          {/* 🔥 Layout Grid 2 Kolom untuk Desktop */}
+          {/* Layout Grid 2 Kolom untuk Desktop */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 text-left">
             
             {/* --- KOLOM KIRI: INSTRUKSI PEMBAYARAN --- */}
             <div>
               <h3 className="font-bold text-dark mb-4">1. Pilih Metode Pembayaran</h3>
               
-              {/* Tab Pemilihan Metode */}
               <div className="flex gap-4 mb-6">
                 <button
                   onClick={() => setPaymentMethod("qris")}
@@ -108,10 +195,9 @@ const PaymentContent = () => {
                 </button>
               </div>
 
-              {/* Konten Metode Pembayaran */}
               {paymentMethod === "qris" ? (
                 <div className="animate-fade-in bg-gray-50 p-5 rounded-lg border border-gray-200 text-center">
-                  <p className="text-sm text-gray-500 mb-4">Scan QR code di bawah ini menggunakan aplikasi M-Banking atau E-Wallet (Gopay, OVO, Dana).</p>
+                  <p className="text-sm text-gray-500 mb-4">Scan QR code di bawah ini menggunakan aplikasi M-Banking atau E-Wallet.</p>
                   <div className="inline-block p-3 border border-gray-300 bg-white rounded-xl shadow-sm">
                     <Image src="/images/payment/image.png" alt="QRIS" width={200} height={200} className="rounded-lg" />
                   </div>
@@ -132,14 +218,6 @@ const PaymentContent = () => {
                     <div>
                       <p className="font-bold text-dark">SuperBank</p>
                       <p className="text-sm text-gray-600">000038824819 <br/> a.n Nihlah Mutiara Taslimah</p>
-                    </div>
-                    <button className="text-blue bg-blue/10 px-3 py-1 rounded text-xs font-medium hover:bg-blue/20">Salin</button>
-                  </div>
-
-                  <div className="bg-white p-4 rounded-lg border border-gray-200 flex justify-between items-center shadow-sm">
-                    <div>
-                      <p className="font-bold text-dark">SeaBank</p>
-                      <p className="text-sm text-gray-600">901029456191 <br/> a.n Windy Destiana Sari</p>
                     </div>
                     <button className="text-blue bg-blue/10 px-3 py-1 rounded text-xs font-medium hover:bg-blue/20">Salin</button>
                   </div>
@@ -180,9 +258,9 @@ const PaymentContent = () => {
               <div className="mt-6 space-y-3">
                 <button 
                   onClick={handleUploadSubmit}
-                  disabled={isUploading}
+                  disabled={isUploading || !preview}
                   className={`w-full font-medium text-white py-3 rounded-md ease-out duration-200 flex justify-center items-center ${
-                    preview 
+                    preview && !isUploading
                       ? "bg-blue hover:bg-blue-dark shadow-md" 
                       : "bg-gray-400 cursor-not-allowed"
                   }`}
@@ -190,7 +268,7 @@ const PaymentContent = () => {
                   {isUploading ? (
                     <span className="flex items-center gap-2">
                       <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                      Mengunggah...
+                      Memproses Orderan...
                     </span>
                   ) : "Kirim Bukti Pembayaran"}
                 </button>
@@ -202,7 +280,7 @@ const PaymentContent = () => {
                 </div>
 
                 <a 
-                  href="https://wa.me/08985636138" // Ganti dengan no WA asli
+                  href="https://wa.me/08985636138"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full flex justify-center items-center gap-2 font-medium text-green-600 bg-green-50 border border-green-200 py-3 rounded-md hover:bg-green-100 transition-colors"
@@ -226,7 +304,6 @@ const PaymentContent = () => {
   );
 };
 
-// 🔥 Komponen Utama yang diexport (Wajib membungkus Content dengan Suspense)
 const PaymentPage = () => {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Memuat detail pembayaran...</div>}>

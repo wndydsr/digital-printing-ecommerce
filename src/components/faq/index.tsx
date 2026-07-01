@@ -78,7 +78,7 @@ const faqs = [
     id: 9,
     cat: "produk",
     q: "Apakah harga sudah termasuk ongkos kirim?",
-    a: "Belum. Harga yang tertera adalah harga produksi saja. Ongkos kirim dihitung terpisah saat checkout: Pesan Antar dalam kota Rp 20.000, atau Ambil di Toko gratis tanpa biaya tambahan.",
+    a: "Belum. Harga yang tertera adalah harga produksi saja. Ongkos kirim dihitung terpisah saat checkout: Pesan Antar menyesuaikan jarak pengantaran, atau Ambil di Toko gratis tanpa biaya tambahan.",
   },
   // Pembayaran
   {

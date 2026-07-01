@@ -1,12 +1,22 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic"; 
 import Breadcrumb from "../Common/Breadcrumb";
 import ShippingMethod from "./ShippingMethod";
 import PaymentMethod from "./PaymentMethod";
 import { useAppSelector, AppDispatch } from "@/redux/store";
 import { useDispatch } from "react-redux";
 import { removeItemFromCart } from "@/redux/features/cart-slice"; 
+
+const MapSelector = dynamic(() => import("./MapSelector"), {
+  ssr: false,
+  loading: () => <div className="h-[300px] bg-gray-100 flex items-center justify-center text-xs text-gray-400">Memuat Peta Interaktif...</div>
+});
+
+const STORE_LAT = -7.0522; 
+const STORE_LNG = 110.4357;
+const COST_PER_KM = 5000;
 
 const Checkout = () => {
   const router = useRouter();
@@ -18,46 +28,100 @@ const Checkout = () => {
   const [loading, setLoading] = useState(false);
   const [customerData, setCustomerData] = useState<any>(null);
 
-  const [shippingMethod, setShippingMethod] = useState("regular");
-  const [shippingCost, setShippingCost] = useState(0);
+  const [shippingMethod, setShippingMethod] = useState("pickup"); 
+  const [shippingCost, setShippingCost] = useState(0); 
+  const [distance, setDistance] = useState<number | null>(null); 
+  const [gpsLoading, setGpsLoading] = useState(false);
 
-  // Update shipping cost saat metode berubah
+  const [selectedLat, setSelectedLat] = useState<number>(STORE_LAT);
+  const [selectedLng, setSelectedLng] = useState<number>(STORE_LNG);
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; 
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; 
+  };
+
+  const handleLocationChange = (lat: number, lng: number) => {
+    setSelectedLat(lat);
+    setSelectedLng(lng);
+
+    const calculatedKm = calculateDistance(STORE_LAT, STORE_LNG, lat, lng);
+    const finalDistance = Math.ceil(calculatedKm); 
+    const calculatedCost = finalDistance * COST_PER_KM;
+
+    setDistance(finalDistance);
+    setShippingCost(calculatedCost);
+  };
+
+  // 🔥 KETIKA USER MEMILIH METODE PENGIRIMAN
   const handleShippingChange = (method: string) => {
     setShippingMethod(method);
-    setShippingCost(method === "delivery" ? 20000 : 0);
+    
+    if (method === "pickup") {
+      setShippingCost(0);
+      setDistance(null);
+      return;
+    }
+
+    if (method === "delivery") {
+      // 🚀 LANGSUNG DETEKSI OTOMATIS GPS PENGRAKAT USER DI AWAL
+      if (navigator.geolocation) {
+        setGpsLoading(true);
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const currentLat = position.coords.latitude;
+            const currentLng = position.coords.longitude;
+            
+            // Set koordinat ke lokasi user & hitung ongkir otomatis
+            handleLocationChange(currentLat, currentLng);
+            setGpsLoading(false);
+          },
+          (error) => {
+            console.error("GPS Terblokir/Error: ", error);
+            alert("Gagal mendeteksi koordinat otomatis. Silakan gunakan kolom pencarian jalan atau geser penanda manual.");
+            // Fallback kembali ke titik Polines agar maps tidak kosong
+            handleLocationChange(STORE_LAT, STORE_LNG);
+            setGpsLoading(false);
+          },
+          { enableHighAccuracy: true, timeout: 6000 }
+        );
+      } else {
+        handleLocationChange(STORE_LAT, STORE_LNG);
+      }
+    }
   };
 
   const totalPayment = totalPrice + shippingCost;
-
   const allCartItems = useAppSelector((state: any) => state.cartReducer.items);
 
-  // 🔥 FUNGSI PEMBANTU UNTUK KALKULASI HARGA (Sama dengan Backend)
   const calculateItemPrice = (item: any) => {
     let price = Number(item.price || item.discountedPrice || 0);
-
-    // Tambahkan harga atribut
     if (item.selectedOptions && typeof item.selectedOptions === 'object') {
       Object.values(item.selectedOptions).forEach((opt: any) => {
         price += Number(opt.additional_price || 0);
       });
     }
-
-    // Kalkulasi Luas
     const panjang = Number(item.panjang || 0);
     const lebar = Number(item.lebar || 0);
     if (panjang > 0 && lebar > 0) {
       const luasM2 = (panjang * lebar) / 10000;
       price = luasM2 * price;
     }
-    
     return price;
   };
 
   useEffect(() => {
     const customerStr = localStorage.getItem("customer");
-    if (customerStr) {
-      setCustomerData(JSON.parse(customerStr));
-    }
+    if (customerStr) setCustomerData(JSON.parse(customerStr));
 
     const params = new URLSearchParams(window.location.search);
     const type = params.get("type");
@@ -73,7 +137,6 @@ const Checkout = () => {
     } else {
       setIsDirect(false);
       setCartItems(allCartItems);
-
       const totalRedux = allCartItems.reduce((sum: number, item: any) => {
         return sum + (calculateItemPrice(item) * Number(item.quantity));
       }, 0);
@@ -82,86 +145,43 @@ const Checkout = () => {
   }, [allCartItems]);
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-    if (!customerData) {
-      alert("Data pelanggan belum dimuat. Mohon tunggu sebentar.");
-      return;
-    }
-
-    if (cartItems.length === 0) {
-      alert("Keranjang Kosong! Silakan pilih produk terlebih dahulu.");
-      return;
-    }
+    e.preventDefault();
+    if (!customerData || cartItems.length === 0 || gpsLoading) return;
 
     setLoading(true);
-
     try {
-      const formData = new FormData();
-      formData.append("customer_id", customerData.id);
-      formData.append("total_price", totalPrice.toString());
-      formData.append("current_stage_id", "1"); 
-      formData.append("shipping_method", shippingMethod); 
-      formData.append("shipping_cost", shippingCost.toString());
+      const currentDesignMethod = cartItems[0]?.designMethod || cartItems[0]?.design_method || "ready-to-print";
 
-      cartItems.forEach((item: any, index: number) => {
-        const productId = item.product_id || item.id; 
-        formData.append(`items[${index}][product_id]`, productId); 
-        formData.append(`items[${index}][quantity]`, item.quantity);
-        formData.append(`items[${index}][panjang]`, item.panjang || 0);
-        formData.append(`items[${index}][lebar]`, item.lebar || 0);
-        formData.append(`items[${index}][need_design]`, item.need_design ? "1" : "0");
+      const checkoutPayload = {
+        customer_id: customerData.id,
+        total_price: totalPrice.toString(),
+        shipping_method: shippingMethod,
+        shipping_cost: shippingCost.toString(),
+        is_direct: isDirect,
+        design_method: currentDesignMethod, 
+        shipping_latitude: selectedLat.toString(),
+        shipping_longitude: selectedLng.toString(),
+        items: cartItems.map((item) => {
+          const itemMethod = item.designMethod || item.design_method || "ready-to-print";
+          return {
+            id: item.id,
+            product_id: item.product_id || item.id,
+            quantity: item.quantity,
+            panjang: item.panjang || 0,
+            lebar: item.lebar || 0,
+            need_design: itemMethod === "need-design" ? "1" : "0",
+            dummy_file_name: item.dummy_file_name || null, 
+            attributes: item.selectedOptions 
+              ? Object.values(item.selectedOptions).map((opt: any) => String(opt.id))
+              : []
+          };
+        })
+      };
 
-        if (item.design_file instanceof File) {
-            formData.append(`items[${index}][design_file][]`, item.design_file);
-        }
-        
-        if (item.support_files && Array.isArray(item.support_files)) {
-            item.support_files.forEach((file: File) => {
-                formData.append(`items[${index}][reference_files][]`, file);
-            });
-        }
-
-        if (item.selectedOptions) {
-            Object.values(item.selectedOptions).forEach((opt: any) => {
-                formData.append(`items[${index}][attributes][]`, String(opt.id));
-            });
-        }
-      });
-
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/orders`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Accept": "application/json",
-        },
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error("Gagal menyimpan pesanan");
-
-      if (isDirect) {
-        sessionStorage.removeItem("directCheckoutItem");
-      } else {
-        for (const item of cartItems) {
-          const deleteRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/cart/item/${item.id}`, {
-            method: "DELETE",
-            headers: { 
-                "Authorization": `Bearer ${token}`,
-                "Accept": "application/json"
-            }
-          });
-          if (deleteRes.ok) dispatch(removeItemFromCart(item.id)); 
-        }
-      }
-
-      alert("Pesanan berhasil dibuat!");
+      sessionStorage.setItem("pendingCheckoutData", JSON.stringify(checkoutPayload));
       router.push(`/payment?amount=${totalPayment}`);
-     } catch (error) {
-
-      console.error("Checkout error:", error);
-      alert("Terjadi kesalahan saat memproses pesanan. Coba lagi.");
+    } catch (error) {
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -174,14 +194,14 @@ const Checkout = () => {
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
           <form onSubmit={handleCheckoutSubmit}>
             <div className="flex flex-col lg:flex-row gap-7.5 xl:gap-11">
-              <div className="lg:max-w-[670px] w-full">
+              <div className="lg:max-w-[670px] w-full space-y-6">
+                
+                {/* Ringkasan Belanjaan */}
                 <div className="bg-white shadow-1 rounded-[10px] overflow-hidden">
-                  <div className="border-b border-gray-3 py-5 px-6 flex items-center justify-between">
-                    <h3 className="font-medium text-xl text-dark">
-                      Item Pesanan ({cartItems.length} Item)
-                    </h3>
+                  <div className="border-b border-gray-3 py-5 px-6">
+                    <h3 className="font-medium text-xl text-dark">Item Pesanan</h3>
                   </div>
-
+                  
                   <div className="grid grid-cols-6 gap-4 px-6 py-4 border-b border-gray-3 bg-gray-1 text-sm font-medium">
                     <div>Gambar</div>
                     <div className="col-span-2">Produk</div>
@@ -190,56 +210,64 @@ const Checkout = () => {
                     <div className="text-center">Total</div>
                   </div>
 
-                  {cartItems.length > 0 ? (
-                    cartItems.map((item: any, idx: number) => {
-                      const pricePerUnit = calculateItemPrice(item);
-                      const options = item.selectedOptions || item.selected_options;
-                      
-                      return (
-                        <div key={idx} className="grid grid-cols-6 gap-4 px-6 py-5 items-center border-b border-gray-3 text-xs">
-                          <div>
-                            <img src={item.img || "/placeholder.png"} alt="product" className="w-16 h-16 object-cover rounded-lg" />
-                          </div>
-                          <div className="col-span-2">
-                            <h4 className="font-medium text-dark">{item.title || item.product?.name}</h4>
-                            {options && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                {Object.values(options).map((opt: any) => opt.name).join(", ")}
-                              </p>
-                            )}
-                            {Number(item.panjang) > 0 && (
-                              <p className="text-xs text-gray-500">Ukuran: {item.panjang} x {item.lebar} cm</p>
-                            )}
-                          </div>
-                          <div className="text-center font-medium">{item.quantity}</div>
-                          <div className="text-center">Rp {pricePerUnit.toLocaleString("id-ID")}</div>
-                          <div className="text-center font-medium text-red">
-                            Rp {(pricePerUnit * Number(item.quantity)).toLocaleString("id-ID")}
-                          </div>
+                  {cartItems.map((item: any, idx: number) => {
+                    const pricePerUnit = calculateItemPrice(item);
+                    return (
+                      <div key={idx} className="grid grid-cols-6 gap-4 px-6 py-5 items-center border-b border-gray-3 text-xs">
+                        <div><img src={item.img || "/placeholder.png"} alt="product" className="w-16 h-16 object-cover rounded-lg" /></div>
+                        <div className="col-span-2">
+                          <h4 className="font-medium text-dark">{item.title || item.product?.name}</h4>
+                          {Number(item.panjang) > 0 && <p className="text-xs text-gray-500">Ukuran: {item.panjang} x {item.lebar} cm</p>}
                         </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-10 text-gray-500">Keranjang belanja Anda kosong.</div>
-                  )}
+                        <div className="text-center font-medium">{item.quantity}</div>
+                        <div className="text-center">Rp {pricePerUnit.toLocaleString("id-ID")}</div>
+                        <div className="text-center font-medium text-red">Rp {(pricePerUnit * Number(item.quantity)).toLocaleString("id-ID")}</div>
+                      </div>
+                    );
+                  })}
 
-                  <div className="flex items-center justify-between px-6 py-2">
+                  <div className="flex items-center justify-between px-6 py-2 mt-4">
                     <span>Subtotal</span>
                     <span>Rp {totalPrice.toLocaleString("id-ID")}</span>
                   </div>
 
                   <div className="flex items-center justify-between px-6 py-2">
-                    <span>Ongkos Kirim</span>
-                    <span>{shippingCost === 0 ? "Free" : `Rp ${shippingCost.toLocaleString("id-ID")}`}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between px-6 py-5">
-                    <span className="font-medium text-dark">Total Pembayaran</span>
-                    <span className="font-semibold text-red text-lg">
-                      Rp {totalPayment.toLocaleString("id-ID")}
+                    <span>
+                      Ongkos Kirim 
+                      {distance !== null && <span className="text-xs text-gray-400 block">(Jarak terdeteksi: {distance} Km)</span>}
+                    </span>
+                    <span className="font-medium">
+                      {gpsLoading ? (
+                        <span className="text-xs text-blue animate-pulse">Melacak koordinat GPS Anda...</span>
+                      ) : shippingCost === 0 ? (
+                        "Free"
+                      ) : (
+                        `Rp ${shippingCost.toLocaleString("id-ID")}`
+                      )}
                     </span>
                   </div>
+
+                  <div className="flex items-center justify-between px-6 py-5 border-t border-gray-1">
+                    <span className="font-medium text-dark">Total Pembayaran</span>
+                    <span className="font-semibold text-red text-lg">Rp {totalPayment.toLocaleString("id-ID")}</span>
+                  </div>
                 </div>
+
+                {/* 🔥 RENDERING PETA INTERAKTIF */}
+                {shippingMethod === "delivery" && (
+                  <div className="bg-white shadow-1 rounded-[10px] p-6 space-y-4 animate-fade-in">
+                    <h3 className="font-medium text-lg text-dark flex items-center gap-2">
+                      📍 Alamat Lokasi Pengantaran Cetak
+                    </h3>
+                    
+                    <MapSelector 
+                      initialLat={selectedLat} 
+                      initialLng={selectedLng} 
+                      onLocationSelect={handleLocationChange} 
+                    />
+                  </div>
+                )}
+
               </div>
 
               <div className="max-w-[455px] w-full">
@@ -247,13 +275,12 @@ const Checkout = () => {
                   shippingMethod={shippingMethod} 
                   setShippingMethod={handleShippingChange} 
                 />
-                {/* <PaymentMethod /> */}
                 <button
                   type="submit"
-                  disabled={loading || cartItems.length === 0}
+                  disabled={loading || gpsLoading || cartItems.length === 0}
                   className="w-full flex justify-center font-medium text-white bg-blue py-3 px-6 rounded-md ease-out duration-200 hover:bg-blue-dark mt-7.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? "Memproses..." : "Process to Checkout"}
+                  {gpsLoading ? "Menunggu GPS..." : loading ? "Memproses..." : "Process to Checkout"}
                 </button>
               </div>
             </div>

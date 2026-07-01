@@ -22,6 +22,16 @@ const MyAccount = () => {
   const openAddressModal = () => setAddressModal(true);
   const closeAddressModal = () => setAddressModal(false);
 
+  // 🔥 FUNGSI PEMBANTU UNTUK FORMAT "MEMBER SINCE"
+  const formatMemberSince = (dateString: string) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("id-ID", {
+      month: "short",
+      year: "numeric"
+    });
+  };
+
   useEffect(() => {
     const fetchCustomer = async () => {
       const token = localStorage.getItem("token");
@@ -76,7 +86,7 @@ const MyAccount = () => {
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
           <div className="flex flex-col xl:flex-row gap-7.5">
             
-            {/* --- SIDEBAR MENU (LOGONYA KEMBALI SEPERTI AWAL) --- */}
+            {/* --- SIDEBAR MENU --- */}
             <div className="xl:max-w-[370px] w-full bg-white rounded-xl shadow-1">
               <div className="flex xl:flex-col">
                 <div className="hidden lg:flex flex-wrap items-center gap-5 py-6 px-4 sm:px-7.5 xl:px-9 border-r xl:border-r-0 xl:border-b border-gray-3">
@@ -85,7 +95,10 @@ const MyAccount = () => {
                   </div>
                   <div>
                     <p className="font-medium text-dark mb-0.5">{customer?.name}</p>
-                    <p className="text-custom-xs">Member Since Sep 2020</p>
+                    {/* 🔥 PERBAIKAN: Membaca kolom created_at dari database secara dinamis */}
+                    <p className="text-custom-xs text-gray-500">
+                      Member Sejak {customer?.created_at ? formatMemberSince(customer.created_at) : "..."}
+                    </p>
                   </div>
                 </div>
 

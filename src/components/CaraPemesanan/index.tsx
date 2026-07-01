@@ -61,7 +61,7 @@ const steps = [
     icon: Truck,
     items: [
       "Review kembali produk di keranjang belanja sebelum melanjutkan.",
-      <>Pilih metode pengiriman: <strong>Pesan Antar</strong> (Rp 20.000) atau <strong>Ambil di Toko</strong> (Gratis).</>,
+      <>Pilih metode pengiriman: <strong>Pesan Antar</strong>atau <strong>Ambil di Toko</strong> (Gratis).</>,
       "Ongkos kirim akan otomatis ditambahkan ke total tagihan Anda.",
     ],
     tip: "Periksa kembali detail pesanan untuk menghindari kesalahan sebelum checkout."

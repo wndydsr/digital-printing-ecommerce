@@ -124,7 +124,7 @@ const Header = () => {
                         type="search"
                         name="search"
                         id="search"
-                        placeholder="I am shopping for..."
+                        placeholder="Saya ingin mencari..."
                         autoComplete="off"
                         className="custom-search w-full rounded-r-[5px] bg-gray-1 !border-l-0 border border-gray-3 py-2.5 pl-4 pr-10 outline-none ease-in duration-200"
                       />
@@ -178,7 +178,7 @@ const Header = () => {
 
                     <div>
                       <span className="block text-2xs text-dark-4 uppercase">
-                        account
+                        akun saya
                       </span>
                       <p className="font-medium text-custom-sm text-dark truncate max-w-[100px]">
                          {customer ? customer.name : "Sign In"}
@@ -205,7 +205,7 @@ const Header = () => {
 
                    <div>
                     <span className="block text-2xs text-dark-4 uppercase">
-                      cart
+                      keranjang
                     </span>
                     {/* 🔥 GUNAKAN calculatedTotal DI SINI */}
                     <p className="font-medium text-custom-sm text-dark">

@@ -1,297 +1,148 @@
 "use client";
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useDispatch } from "react-redux";
-import { useAppSelector, AppDispatch } from "@/redux/store";
-import { removeItemFromCart } from "@/redux/features/cart-slice";
-import { directDirectFileCache } from "@/components/Common/QuickViewModal"; // Import dari QuickViewModal
+import Script from "next/script"; // 1. Import Script Next.js di sini
 
 const PaymentContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
-  const amount = searchParams.get("amount") || "0";
   
-  const [paymentMethod, setPaymentMethod] = useState("qris");
-  const [timeLeft, setTimeLeft] = useState(24 * 60 * 60); // 24 jam dalam detik
+  const amount = searchParams.get("amount") || "0";
+  const orderId = searchParams.get("orderId") || "PRINT-" + new Date().getTime();
 
-  // State untuk Upload Bukti
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Ambil data sementara dari sessionStorage saat halaman dimuat
-  useEffect(() => {
-    const data = sessionStorage.getItem("pendingCheckoutData");
-    if (data) {
-      setPendingOrderData(JSON.parse(data));
-    }
-  }, []);
-
-  // Format Countdown Timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h.toString().padStart(2, "0")} : ${m.toString().padStart(2, "0")} : ${s.toString().padStart(2, "0")}`;
-  };
-
-  // Handler untuk memilih file
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      setFile(selectedFile);
-      setPreview(URL.createObjectURL(selectedFile));
-    }
-  };
-
-  // 🔥 HANDLER UTAMA UNTUK BUAT ORDER SEKALIGUS KIRIM BUKTI
-const handleUploadSubmit = async () => {
-    if (!file) {
-      alert("Pilih gambar bukti pembayaran terlebih dahulu!");
-      return;
-    }
-
-    if (!pendingOrderData) {
-      alert("Data pesanan tidak ditemukan. Silakan checkout ulang.");
-      return;
-    }
-    
-    setIsUploading(true);
-    
+  const handleMidtransPayment = async () => {
+    setIsProcessing(true);
     try {
-      const token = localStorage.getItem("token");
-      const formData = new FormData();
+      const token = localStorage.getItem("token"); 
 
-      const designMethod = pendingOrderData.design_method || "ready-to-print";
-      const targetStageId = designMethod === "ready-to-print" ? "2" : "1";
-
-      formData.append("customer_id", pendingOrderData.customer_id);
-      formData.append("total_price", pendingOrderData.total_price);
-      formData.append("current_stage_id", targetStageId); 
-      formData.append("design_method", designMethod);
-      formData.append("shipping_method", pendingOrderData.shipping_method);
-      formData.append("shipping_cost", pendingOrderData.shipping_cost);
-      formData.append("payment_proof", file); // Bukti bayar
-      formData.append("payment_method", paymentMethod);
-
-      pendingOrderData.items.forEach((item: any, index: number) => {
-        formData.append(`items[${index}][product_id]`, item.product_id);
-        formData.append(`items[${index}][quantity]`, item.quantity);
-        formData.append(`items[${index}][panjang]`, item.panjang);
-        formData.append(`items[${index}][lebar]`, item.lebar);
-        formData.append(`items[${index}][need_design]`, item.need_design);
-        
-        // 🔥 JATUH KAN JARING PENGAMAN UTAMA: Inject File Cetak Asli untuk Jalur Beli Langsung
-        if (pendingOrderData.is_direct) {
-          if (designMethod === "ready-to-print" && directDirectFileCache.readyDesignFile) {
-            // Pasangkan file master ke key design_file (dikemas dalam bentuk array sesuai perilaku req backend)
-            formData.append(`items[${index}][design_file][]`, directDirectFileCache.readyDesignFile);
-          } else if (designMethod === "need-design" && directDirectFileCache.supportFiles.length > 0) {
-            directDirectFileCache.supportFiles.forEach((supFile) => {
-              formData.append(`items[${index}][reference_files][]`, supFile);
-            });
-          }
-        }
-
-        if (item.dummy_file_name) {
-          formData.append(`items[${index}][dummy_file_name]`, item.dummy_file_name);
-        }
-
-        if (item.attributes && Array.isArray(item.attributes)) {
-          item.attributes.forEach((attrId: string) => {
-            formData.append(`items[${index}][attributes][]`, attrId);
-          });
-        }
-      });
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/orders`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Accept": "application/json",
-        },
-        body: formData, // Mengirim data multipart/form-data utuh ke Laravel
-      });
-
-      if (!res.ok) throw new Error("Gagal memproses pesanan di server.");
-
-      // Bersihkan cache memori setelah berhasil transaksi
-      directDirectFileCache.readyDesignFile = null;
-      directDirectFileCache.supportFiles = [];
-
-      if (pendingOrderData.is_direct) {
-        sessionStorage.removeItem("directCheckoutItem");
-      } else {
-        // Hapus item keranjang jika via keranjang...
+      if (!token) {
+        alert("Sesi Anda telah habis. Silakan login kembali.");
+        router.push("/login");
+        return;
       }
 
-      sessionStorage.removeItem("pendingCheckoutData");
-      alert("Bukti pembayaran berhasil diunggah! Pesanan masuk ke sistem.");
-      router.push("/my-account?tab=orders");
+      // Pastikan objek snap tersedia di window sebelum menembak API Laravel
+      if (!(window as any).snap) {
+        alert("Sistem pembayaran Midtrans belum siap sepenuhnya. Mohon tunggu beberapa detik, lalu klik kembali.");
+        setIsProcessing(false);
+        return;
+      }
 
-    } catch (error) {
-      console.error(error);
-      alert("Terjadi kesalahan jaringan.");
-    } finally {
-      setIsUploading(false);
+      const response = await fetch("http://localhost:8000/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          orderId: orderId,
+          totalHarga: Number(amount),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.token) {
+        throw new Error(data.error || "Gagal mendapatkan token pembayaran dari server.");
+      }
+
+      // Memanggil Snap Pay
+      (window as any).snap.pay(data.token, {
+        onSuccess: function (result: any) {
+          alert("Pembayaran Berhasil!");
+          router.push("/my-account?tab=orders");
+        },
+        onPending: function (result: any) {
+          alert("Menunggu Pembayaran Selesai.");
+          router.push("/my-account?tab=orders");
+        },
+        onError: function (result: any) {
+          alert("Pembayaran Gagal! Silakan coba lagi.");
+          setIsProcessing(false);
+        },
+        onClose: function () {
+          setIsProcessing(false);
+        },
+      });
+    } catch (error: any) {
+      alert(error.message || "Terjadi kesalahan koneksi ke server Laravel.");
+      setIsProcessing(false);
     }
   };
 
   return (
     <section className="py-20 bg-gray-2 min-h-screen flex items-center justify-center mt-10">
-      <div className="max-w-[900px] w-full mx-auto px-4">
+      {/* 2. Taruh Script Midtrans di sini agar ter-load eksklusif di halaman ini */}
+      <Script
+        src="https://app.sandbox.midtrans.com/snap/snap.js"
+        data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || ""}
+        strategy="lazyOnload" // Menggunakan lazyOnload di sini aman karena skrip dimuat begitu komponen ini mount
+      />
+
+      <div className="max-w-[550px] w-full mx-auto px-4">
         <div className="bg-white shadow-1 rounded-[10px] p-6 sm:p-10 text-center">
           
-          <h2 className="text-2xl sm:text-3xl font-bold text-dark mb-2">Menunggu Pembayaran</h2>
-          <p className="text-gray-500 mb-6">Selesaikan pembayaran Anda dalam waktu:</p>
-          
-          {/* Timer */}
-          <div className="inline-block bg-red-50 text-red-500 font-bold text-2xl px-8 py-3 rounded-lg mb-8">
-            {formatTime(timeLeft)}
-          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-dark mb-2">Konfirmasi Pembayaran</h2>
+          <p className="text-gray-500 mb-8">
+            Klik tombol di bawah untuk membayar pesananmu melalui gerbang pembayaran resmi Midtrans.
+          </p>
 
-          <div className="border-b border-gray-3 pb-6 mb-8">
-            <p className="text-sm text-gray-500 mb-1">Total yang harus dibayar</p>
-            <p className="text-4xl font-black text-blue">
+          <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 mb-8 text-left">
+            <p className="text-sm text-gray-500 mb-1 text-center">Total yang harus dibayar</p>
+            <p className="text-4xl font-black text-blue text-center mb-4">
               Rp {Number(amount).toLocaleString("id-ID")}
             </p>
+            <div className="text-xs space-y-1 text-gray-600 border-t border-gray-200 pt-3">
+              <p><strong>Order ID:</strong> {orderId}</p>
+              <p className="text-gray-400 mt-2">
+                * Metode pembayaran seperti QRIS, Transfer Bank (Virtual Account), Mandiri Clickpay, dll. akan tersedia langsung di dalam pop-up Midtrans.
+              </p>
+            </div>
           </div>
 
-          {/* Layout Grid 2 Kolom untuk Desktop */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 text-left">
-            
-            {/* --- KOLOM KIRI: INSTRUKSI PEMBAYARAN --- */}
-            <div>
-              <h3 className="font-bold text-dark mb-4">1. Pilih Metode Pembayaran</h3>
-              
-              <div className="flex gap-4 mb-6">
-                <button
-                  onClick={() => setPaymentMethod("qris")}
-                  className={`flex-1 py-2.5 font-medium rounded-md transition-all ${
-                    paymentMethod === "qris" ? "bg-blue text-white" : "bg-gray-100 text-dark hover:bg-gray-200"
-                  }`}
-                >
-                  QRIS
-                </button>
-                <button
-                  onClick={() => setPaymentMethod("transfer")}
-                  className={`flex-1 py-2.5 font-medium rounded-md transition-all ${
-                    paymentMethod === "transfer" ? "bg-blue text-white" : "bg-gray-100 text-dark hover:bg-gray-200"
-                  }`}
-                >
-                  Transfer Bank
-                </button>
-              </div>
-
-              {paymentMethod === "qris" ? (
-                <div className="animate-fade-in bg-gray-50 p-5 rounded-lg border border-gray-200 text-center">
-                  <p className="text-sm text-gray-500 mb-4">Scan QR code di bawah ini menggunakan aplikasi M-Banking atau E-Wallet.</p>
-                  <div className="inline-block p-3 border border-gray-300 bg-white rounded-xl shadow-sm">
-                    <Image src="/images/payment/image.png" alt="QRIS" width={200} height={200} className="rounded-lg" />
-                  </div>
-                </div>
+          <div className="space-y-4">
+            <button
+              onClick={handleMidtransPayment}
+              disabled={isProcessing || Number(amount) <= 0}
+              className={`w-full font-bold text-white py-4 rounded-xl text-lg transition-all duration-200 flex justify-center items-center ${
+                isProcessing || Number(amount) <= 0
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue hover:bg-blue-dark shadow-md"
+              }`}
+            >
+              {isProcessing ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Memproses ke Midtrans...
+                </span>
               ) : (
-                <div className="animate-fade-in space-y-3">
-                  <p className="text-sm text-gray-500 mb-2">Transfer tepat sesuai nominal ke salah satu rekening berikut:</p>
-                  
-                  <div className="bg-white p-4 rounded-lg border border-gray-200 flex justify-between items-center shadow-sm">
-                    <div>
-                      <p className="font-bold text-dark">BNI</p>
-                      <p className="text-sm text-gray-600">1787965251 <br/> a.n Windy Destiana Sari</p>
-                    </div>
-                    <button className="text-blue bg-blue/10 px-3 py-1 rounded text-xs font-medium hover:bg-blue/20">Salin</button>
-                  </div>
-
-                  <div className="bg-white p-4 rounded-lg border border-gray-200 flex justify-between items-center shadow-sm">
-                    <div>
-                      <p className="font-bold text-dark">SuperBank</p>
-                      <p className="text-sm text-gray-600">000038824819 <br/> a.n Nihlah Mutiara Taslimah</p>
-                    </div>
-                    <button className="text-blue bg-blue/10 px-3 py-1 rounded text-xs font-medium hover:bg-blue/20">Salin</button>
-                  </div>
-                </div>
+                "Bayar Sekarang"
               )}
+            </button>
+
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-gray-200"></div>
+              <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase">Atau</span>
+              <div className="flex-grow border-t border-gray-200"></div>
             </div>
 
-            {/* --- KOLOM KANAN: UPLOAD BUKTI --- */}
-            <div>
-              <h3 className="font-bold text-dark mb-4">2. Konfirmasi Pembayaran</h3>
-              <p className="text-sm text-gray-500 mb-4">Upload tangkapan layar (screenshot) atau foto struk bukti transfer Anda di sini.</p>
-              
-              <label 
-                htmlFor="upload-bukti" 
-                className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors overflow-hidden relative"
-              >
-                {preview ? (
-                  <img src={preview} alt="Preview Bukti" className="w-full h-full object-contain p-2" />
-                ) : (
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <svg className="w-10 h-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                    </svg>
-                    <p className="mb-2 text-sm text-gray-500"><span className="font-semibold text-blue">Klik untuk upload</span></p>
-                    <p className="text-xs text-gray-400">PNG, JPG atau JPEG (Maks. 2MB)</p>
-                  </div>
-                )}
-                <input 
-                  id="upload-bukti" 
-                  type="file" 
-                  accept="image/png, image/jpeg, image/jpg" 
-                  className="hidden" 
-                  onChange={handleFileChange}
-                />
-              </label>
-
-              {/* Tombol Konfirmasi */}
-              <div className="mt-6 space-y-3">
-                <button 
-                  onClick={handleUploadSubmit}
-                  disabled={isUploading || !preview}
-                  className={`w-full font-medium text-white py-3 rounded-md ease-out duration-200 flex justify-center items-center ${
-                    preview && !isUploading
-                      ? "bg-blue hover:bg-blue-dark shadow-md" 
-                      : "bg-gray-400 cursor-not-allowed"
-                  }`}
-                >
-                  {isUploading ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                      Memproses Orderan...
-                    </span>
-                  ) : "Kirim Bukti Pembayaran"}
-                </button>
-                
-                <div className="relative flex py-2 items-center">
-                  <div className="flex-grow border-t border-gray-300"></div>
-                  <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase">Atau</span>
-                  <div className="flex-grow border-t border-gray-300"></div>
-                </div>
-
-                <a 
-                  href="https://wa.me/08985636138"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex justify-center items-center gap-2 font-medium text-green-600 bg-green-50 border border-green-200 py-3 rounded-md hover:bg-green-100 transition-colors"
-                >
-                  Konfirmasi Manual via WA
-                </a>
-              </div>
-
-            </div>
+            <a
+              href="https://wa.me/08985636138"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex justify-center items-center gap-2 font-medium text-green-600 bg-green-50 border border-green-200 py-3 rounded-md hover:bg-green-100 transition-colors"
+            >
+              Hubungi CS via WhatsApp
+            </a>
           </div>
-          
+
           <div className="mt-10 pt-6 border-t border-gray-200">
             <Link href="/" className="text-sm font-medium text-gray-500 hover:text-blue transition-colors">
               &larr; Kembali ke Beranda

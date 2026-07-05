@@ -1,9 +1,10 @@
 "use client";
-import React, { useState, Suspense } from "react";
+// 1. Pastikan menambahkan useEffect di sini
+import React, { useState, useEffect, Suspense } from "react"; 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Script from "next/script"; // 1. Import Script Next.js di sini
+// ❌ HAPUS: import Script from "next/script"; (Karena memicu error CSP)
 
 const PaymentContent = () => {
   const searchParams = useSearchParams();
@@ -13,6 +14,22 @@ const PaymentContent = () => {
   const orderId = searchParams.get("orderId") || "PRINT-" + new Date().getTime();
 
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // 2. AMAN DARI CSP: Load script Midtrans secara murni lewat DOM
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+    script.setAttribute("data-client-key", process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "");
+    script.async = true;
+    
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
 
   const handleMidtransPayment = async () => {
     setIsProcessing(true);
@@ -25,14 +42,16 @@ const PaymentContent = () => {
         return;
       }
 
-      // Pastikan objek snap tersedia di window sebelum menembak API Laravel
       if (!(window as any).snap) {
         alert("Sistem pembayaran Midtrans belum siap sepenuhnya. Mohon tunggu beberapa detik, lalu klik kembali.");
         setIsProcessing(false);
         return;
       }
 
-      const response = await fetch("http://localhost:8000/api/checkout", {
+      // AMBIL URL DARI ENV ATAU FALLBACK LANGSUNG KE API PRODUCTION PRINORA
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.prinora.store/api";
+
+      const response = await fetch(`${baseUrl}/checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -76,12 +95,7 @@ const PaymentContent = () => {
 
   return (
     <section className="py-20 bg-gray-2 min-h-screen flex items-center justify-center mt-10">
-      {/* 2. Taruh Script Midtrans di sini agar ter-load eksklusif di halaman ini */}
-      <Script
-        src="https://app.sandbox.midtrans.com/snap/snap.js"
-        data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || ""}
-        strategy="lazyOnload" // Menggunakan lazyOnload di sini aman karena skrip dimuat begitu komponen ini mount
-      />
+      {/* ❌ Komponen <Script /> bawaan Next.js sudah dihapus dari sini */}
 
       <div className="max-w-[550px] w-full mx-auto px-4">
         <div className="bg-white shadow-1 rounded-[10px] p-6 sm:p-10 text-center">

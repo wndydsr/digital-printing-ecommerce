@@ -48,20 +48,28 @@ const PaymentContent = () => {
         return;
       }
 
-      // AMBIL URL DARI ENV ATAU FALLBACK LANGSUNG KE API PRODUCTION PRINORA
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.prinora.store/api";
 
-      const response = await fetch(`${baseUrl}/checkout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          orderId: orderId,
-          totalHarga: Number(amount),
-        }),
-      });
+    // 1. Ambil URL secara dinamis dari file .env kamu
+    const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    // 2. Tambahkan pengaman otomatis agar ujungnya pasti ditambahkan teks /api
+    const baseUrl = rawBaseUrl 
+      ? (rawBaseUrl.endsWith("/api") ? rawBaseUrl : `${rawBaseUrl}/api`)
+      : "https://api-printing.hanifaslam.dev/api"; // Ini hanya cadangan (fallback) jika .env tidak terbaca
+
+    // 3. Jalankan fetch checkout secara aman
+    const response = await fetch(`${baseUrl}/checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        orderId: orderId,
+        totalHarga: Number(amount),
+      }),
+    });
 
       const data = await response.json();
 

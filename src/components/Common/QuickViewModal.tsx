@@ -69,7 +69,7 @@ const QuickViewModal = () => {
   const photoUrl = product?.photo
     ? product.photo.startsWith("http")
       ? product.photo
-      : `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${product.photo}`
+      : `${process.env.NEXT_PUBLIC_API_URL}/storage/${product.photo}`
     : "/placeholder.png";
 
   const productImages = [photoUrl];
@@ -144,7 +144,7 @@ const QuickViewModal = () => {
       try {
         const payload = createCartPayload(customer.id);
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/cart`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/cart`, {
           method: "POST",
           headers: { 
             "Authorization": `Bearer ${token}` 
@@ -182,7 +182,7 @@ const QuickViewModal = () => {
     }
   };
 
-const handleCheckout = () => {
+  const handleCheckout = () => {
     if (!validateInput()) return;
 
     const customerStr = localStorage.getItem("customer");
@@ -410,7 +410,7 @@ const handleCheckout = () => {
                 {product.description || <span className="text-gray-400 italic">Tidak ada deskripsi spesifikasi untuk produk ini.</span>}
               </p>
 
-              {/* 🔥 Pilihan Variasi Atribut (SEKARANG BERWARNA BIRU & TANPA NOMINAL HARGA) */}
+              {/* 🔥 Pilihan Variasi Atribut */}
               {product.attributes?.length > 0 && (
                 <div className="space-y-4 border-t border-b border-gray-200 py-4 mb-4">
                   <h4 className="font-bold text-sm text-dark">Pilih Spesifikasi Cetak:</h4>
@@ -433,7 +433,6 @@ const handleCheckout = () => {
                               });
                             }
                           }}
-                          // Ditambahkan kelas text-blue border-blue agar tampil biru konsisten saat terpilih
                           className="w-full border border-blue bg-white px-3 py-2.5 rounded-[5px] text-xs font-bold text-blue focus:outline-none cursor-pointer shadow-sm"
                         >
                           {attr.values?.map((val: any) => (

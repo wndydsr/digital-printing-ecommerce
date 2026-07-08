@@ -5,9 +5,8 @@ type InitialState = {
   items: CartItem[];
 };
 
-// 🔥 PERBAIKAN: Menambahkan properti khusus percetakan agar TypeScript tidak error
 export type CartItem = {
-  id: number; // Akan diisi ID produk atau ID Cart Item dari database
+  id: number; 
   title: string;
   price: number;
   quantity: number;
@@ -19,6 +18,9 @@ export type CartItem = {
     thumbnails: string[];
     previews: string[];
   };
+  need_design?: boolean;
+  design_method?: "ready-to-print" | "need-design";
+  dummy_file_name?: string | null;
 };
 
 const initialState: InitialState = {
@@ -29,28 +31,25 @@ export const cart = createSlice({
   name: "cart",
   initialState,
   reducers: {
-    // 🔥 FUNGSI BARU: Untuk menarik data langsung dari database saat pertama kali login
     setCartItems: (state, action: PayloadAction<CartItem[]>) => {
       state.items = action.payload;
     },
 
     addItemToCart: (state, action: PayloadAction<CartItem>) => {
-  const newItem = action.payload;
-  
-  // Cari apakah item dengan ID yang sama sudah ada (sebagai dasar perbandingan)
-  const existingItem = state.items.find((item) => item.id === newItem.id);
+      const newItem = action.payload;
+      const existingItem = state.items.find((item) => item.id === newItem.id);
+      const isCustom = Number(newItem.panjang) > 0 || Object.keys(newItem.selectedOptions || {}).length > 0;
 
-  // Jika produk custom, JANGAN PERNAH gabungkan quantity.
-  // Jika produk biasa, baru boleh gabungkan.
-  const isCustom = Number(newItem.panjang) > 0 || Object.keys(newItem.selectedOptions || {}).length > 0;
-
-  if (existingItem && !isCustom) {
-    existingItem.quantity += newItem.quantity;
-  } else {
-    // 🔥 PENTING: Gunakan spread operator (...) untuk memastikan kita membuat objek baru
-    state.items.push({ ...newItem }); 
-  }
-},
+      if (existingItem && !isCustom) {
+        existingItem.quantity += newItem.quantity;
+        existingItem.need_design = newItem.need_design;
+        existingItem.design_method = newItem.design_method;
+        existingItem.dummy_file_name = newItem.dummy_file_name;
+        existingItem.selectedOptions = newItem.selectedOptions;
+      } else {
+        state.items.push({ ...newItem });
+      }
+    },
 
     removeItemFromCart: (state, action: PayloadAction<number>) => {
       const itemId = action.payload;
@@ -69,7 +68,6 @@ export const cart = createSlice({
       }
     },
 
-    // Fungsi ini akan kita pakai setelah checkout berhasil
     removeAllItemsFromCart: (state) => {
       state.items = [];
     },
@@ -80,17 +78,14 @@ export const selectCartItems = (state: RootState) => state.cartReducer.items;
 
 export const selectTotalPrice = createSelector([selectCartItems], (items) => {
   return items.reduce((total, item) => {
-    // 1. Ambil harga dasar (sekarang ini adalah hargaPerMeter)
     let price = Number(item.price || 0);
 
-    // 2. Tambah harga atribut
     if (item.selectedOptions && typeof item.selectedOptions === 'object') {
       Object.values(item.selectedOptions).forEach((opt: any) => {
         price += Number(opt.additional_price || 0);
       });
     }
 
-    // 3. Kalkulasi Luas (SEKARANG DILAKUKAN SEKALI SAJA DI SINI)
     const panjang = Number(item.panjang || 0);
     const lebar = Number(item.lebar || 0);
     let finalPricePerUnit = price;
@@ -105,7 +100,7 @@ export const selectTotalPrice = createSelector([selectCartItems], (items) => {
 });
 
 export const {
-  setCartItems, // Export fungsi barunya
+  setCartItems, 
   addItemToCart,
   removeItemFromCart,
   updateCartItemQuantity,

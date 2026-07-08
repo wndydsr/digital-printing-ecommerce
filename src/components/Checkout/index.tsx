@@ -8,6 +8,12 @@ import PaymentMethod from "./PaymentMethod";
 import { useAppSelector, AppDispatch } from "@/redux/store";
 import { useDispatch } from "react-redux";
 import { removeItemFromCart } from "@/redux/features/cart-slice"; 
+import { directDirectFileCache } from "../Common/QuickViewModal";
+
+export const checkoutFileCache = {
+  readyDesignFile: null as File | null,
+  supportFiles: [] as File[],
+};
 
 const MapSelector = dynamic(() => import("./MapSelector"), {
   ssr: false,
@@ -62,7 +68,6 @@ const Checkout = () => {
     setShippingCost(calculatedCost);
   };
 
-  // 🔥 KETIKA USER MEMILIH METODE PENGIRIMAN
   const handleShippingChange = (method: string) => {
     setShippingMethod(method);
     
@@ -73,22 +78,18 @@ const Checkout = () => {
     }
 
     if (method === "delivery") {
-      // 🚀 LANGSUNG DETEKSI OTOMATIS GPS PENGRAKAT USER DI AWAL
       if (navigator.geolocation) {
         setGpsLoading(true);
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const currentLat = position.coords.latitude;
             const currentLng = position.coords.longitude;
-            
-            // Set koordinat ke lokasi user & hitung ongkir otomatis
             handleLocationChange(currentLat, currentLng);
             setGpsLoading(false);
           },
           (error) => {
             console.error("GPS Terblokir/Error: ", error);
             alert("Gagal mendeteksi koordinat otomatis. Silakan gunakan kolom pencarian jalan atau geser penanda manual.");
-            // Fallback kembali ke titik Polines agar maps tidak kosong
             handleLocationChange(STORE_LAT, STORE_LNG);
             setGpsLoading(false);
           },
@@ -133,6 +134,11 @@ const Checkout = () => {
         const item = JSON.parse(directItem);
         setCartItems([item]);
         setTotalPrice(calculateItemPrice(item) * Number(item.quantity));
+
+        if (directDirectFileCache.readyDesignFile) {
+          checkoutFileCache.readyDesignFile = directDirectFileCache.readyDesignFile;
+          checkoutFileCache.supportFiles = directDirectFileCache.supportFiles;
+        }
       }
     } else {
       setIsDirect(false);
@@ -253,13 +259,11 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                {/* 🔥 RENDERING PETA INTERAKTIF */}
                 {shippingMethod === "delivery" && (
                   <div className="bg-white shadow-1 rounded-[10px] p-6 space-y-4 animate-fade-in">
                     <h3 className="font-medium text-lg text-dark flex items-center gap-2">
                       📍 Alamat Lokasi Pengantaran Cetak
                     </h3>
-                    
                     <MapSelector 
                       initialLat={selectedLat} 
                       initialLng={selectedLng} 

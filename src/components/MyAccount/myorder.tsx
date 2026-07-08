@@ -1,22 +1,19 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
-const MyOrdersPage = () => {
+const MyOrdersContent = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  // Default tab kita arahkan langsung ke "Dalam Proses" agar user melihat isi datanya langsung
   const [activeTab, setActiveTab] = useState("Dalam Proses");
-
-  // 🆕 State untuk mendeteksi pesanan yang diklik/dibuka
   const [openOrderDetail, setOpenOrderDetail] = useState<any>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // 🛠️ FUNGSI SINKRON DENGAN DATABASE KAMU
+  // 🛠 * FUNGSI SINKRON TAHAPAN DENGAN DATABASE
   const getOrderStatus = (stageId: number) => {
     switch (stageId) {
       case 1:
@@ -97,7 +94,7 @@ const MyOrdersPage = () => {
 
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/orders/customer/${customer.id}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/orders/customer/${customer.id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -116,27 +113,23 @@ const MyOrdersPage = () => {
     fetchOrders();
   }, []);
 
-  // 🔥 LOGIKA FILTER COCOK DATABASE + PAJANGAN MENUNGGU PEMBAYARAN
+  // 🛠️ FILTER TAB UTAMA (Mencocokkan kedudukan order global induk)
   const filteredOrders = orders.filter((order) => {
-      const stageId = Number(order.current_stage_id);
+    const stageId = Number(order.current_stage_id);
 
-      switch (activeTab) {
-        case "Menunggu Pembayaran":
-          return false;
-          
-        case "Menunggu Verifikasi":
-          return stageId === 6;
-          
-        case "Dalam Proses":
-          return stageId === 1 || stageId === 2 || stageId === 3 || stageId === 4;
-          
-        case "Pesanan Selesai":
-          return stageId === 5;
-          
-        default:
-          return false;
-      }
-    });
+    switch (activeTab) {
+      case "Menunggu Pembayaran":
+        return false; 
+      case "Menunggu Verifikasi":
+        return stageId === 6;
+      case "Dalam Proses":
+        return stageId === 1 || stageId === 2 || stageId === 3 || stageId === 4;
+      case "Pesanan Selesai":
+        return stageId === 5;
+      default:
+        return false;
+    }
+  });
 
   const currentTab = tabs.find((t) => t.name === activeTab)!;
 
@@ -173,7 +166,7 @@ const MyOrdersPage = () => {
             ))}
           </div>
 
-          {/* ORDER LIST */}
+          {/* ORDER LIST CARD AREA */}
           <div className="p-6">
             {loading ? (
               <p className="text-center text-sm text-gray-400 py-20">Memuat pesanan...</p>
@@ -184,102 +177,82 @@ const MyOrdersPage = () => {
                     <div 
                       key={order.id} 
                       onClick={() => setOpenOrderDetail(order)}
-                      className="bg-white p-5 rounded-xl border-gray -200 border shadow-sm cursor-pointer"
+                      className="bg-white p-5 rounded-xl border-gray-200 border shadow-sm cursor-pointer hover:border-slate-300 transition-all"
                     >
                       {/* Header Order */}
-                      <div className="flex justify-between items-center border-b border-gray -200 pb-2 mb-2">
+                      <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
                         <div>
-                          <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">
-                            Order #{order.id}
+                          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+                            Order #{order.order_code || order.id}
                           </p>
                         </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                            Number(order.current_stage_id) === 5
-                              ? "bg-green-50 text-green-700"
-                              : "bg-white text-blue border border-blue-500"
-                          }`}
-                        >
-                           {new Date(order.created_at).toLocaleDateString("id-ID", { dateStyle: "long" })}
+                        <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-slate-50 text-gray-500 border border-slate-200">
+                          {new Date(order.created_at).toLocaleDateString("id-ID", { dateStyle: "long" })}
                         </span>
                       </div>
 
                       {/* List Item Produk */}
-                      <div className="space-y-3 mb-4">
+                      <div className="space-y-4 mb-4">
                         {order.order_items &&
-                          order.order_items.map((item: any, idx: number) => (
-                            <div key={idx} className="flex gap-3 items-center justify-between">
-                              <div className="flex gap-3 items-center flex-grow">
-                                <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
-                                  <img
-                                    src={
-                                      item.product?.photo
-                                        ? `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.product.photo}`
-                                        : "/placeholder.png"
-                                    }
-                                    alt={item.product?.name}
-                                    className="w-full h-full object-cover"
-                                  />
+                          order.order_items.map((item: any, idx: number) => {
+                            const currentItemStageId = Number(item.order_stage_id || order.current_stage_id);
+                            return (
+                              <div key={idx} className="flex gap-3 items-center justify-between p-2 rounded-xl hover:bg-slate-50/50 transition-colors">
+                                <div className="flex gap-3 items-center flex-grow">
+                                  <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
+                                    <img
+                                      src={
+                                        item.product?.photo
+                                          ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${item.product.photo}`
+                                          : "/placeholder.png"
+                                      }
+                                      alt={item.product?.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <div className="flex-grow">
+                                    <h4 className="font-semibold text-dark text-sm">
+                                      {item.product?.name || "Produk"}
+                                    </h4>
+                                    <p className="text-xs text-gray-400 mt-0.5">
+                                      Variasi: {item.panjang > 0 ? `${item.panjang}x${item.lebar}cm` : "Standar"}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <p className="text-xs font-medium text-gray-600">x{item.quantity}</p>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="flex-grow">
-                                  <h4 className="font-semibold text-dark text-sm">
-                                    {item.product?.name || "Produk"}
-                                  </h4>
-                                  <p className="text-xs text-gray-400 mt-0.5">
-                                    Variasi: {item.panjang > 0 ? `${item.panjang}x${item.lebar}cm` : "Standar"}
-                                  </p>
-                                  <p className="text-xs font-medium text-gray-600 mt-1">x{item.quantity}</p>
-                                </div>
-                              </div>
 
-                              {/* 🆕 TOMBOL CHAT PINDAH KE SINI (PER ITEM PRODUK) */}
-                              <div className="flex flex-col items-end gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                <p className="font-semibold text-sm text-dark">
-                                  Rp {Number(item.price).toLocaleString("id-ID")}
-                                </p>
-                                {(Number(order.current_stage_id) === 3) && order.designer ? (
-                                  <button
-                                    onClick={() => router.push(`/chat/${order.id}?item=${item.id}`)}
-                                    className="inline-flex items-center gap-1.5 font-medium text-[11px] text-white border border-blue-500 bg-blue py-1.5 px-2.5 rounded-lg transition duration-150"
-                                  >
-                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                      <path d="M21 12c0 4.418-4.03 8-9 8a9.7 9.7 0 01-3.13-.51L3 21l1.66-4.32A7.93 7.93 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                                    </svg>
-                                    Chat Item
-                                  </button>
-                                ) : null}
+                                {/* PANEL TOMBOL CHAT PER ITEM PRODUK */}
+                                <div className="flex flex-col items-end gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <p className="font-semibold text-sm text-dark">
+                                    Rp {Number(item.price * item.quantity).toLocaleString("id-ID")}
+                                  </p>
+                                  {(currentItemStageId === 1 || currentItemStageId === 3 || currentItemStageId === 6) && order.designer_id ? (
+                                    <button
+                                      onClick={() => router.push(`/chat/${order.id}?item=${item.id}`)}
+                                      className="inline-flex items-center gap-1.5 font-bold text-[10px] text-white border border-blue-500 bg-blue py-1.5 px-3 rounded-lg transition duration-150 hover:bg-blue-dark shadow-sm"
+                                    >
+                                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M21 12c0 4.418-4.03 8-9 8a9.7 9.7 0 01-3.13-.51L3 21l1.66-4.32A7.93 7.93 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                                      </svg>
+                                      Chat Desain
+                                    </button>
+                                  ) : null}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                       </div>
 
-                      {/* Footer Total & Action */}
-                      <div className="flex flex-wrap justify-between items-center gap-3 border-t border-gray -200 pt-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="text-sm">
-                          <span className="text-gray-400">Total: </span>
-                          <span className="font-bold text-blue-500">
-                            Rp {Number(order.total_price).toLocaleString("id-ID")}
-                          </span>
+                      {/* Footer Ringkasan Kartu Utama */}
+                      <div className="flex justify-between items-center border-t border-gray-100 pt-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="text-xs text-gray-400">
+                          Total Pembayaran: <span className="font-black text-sm text-blue ml-1">Rp {Number(order.total_price).toLocaleString("id-ID")}</span>
                         </div>
-
-                        <div className="flex items-center gap-2">
-                          {(Number(order.current_stage_id) === 4 || Number(order.current_stage_id) === 2) && (
-                            <div className="inline-flex items-center gap-1.5 font-semibold text-xs text-orange-600 ">
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="6 9 6 2 18 2 18 9" />
-                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                                <rect x="6" y="14" width="12" height="8" />
-                              </svg>
-                              Sedang Dicetak
-                            </div>
-                          )}
-
-                          {(Number(order.current_stage_id) === 5) && (
-                            <div className="inline-flex items-center gap-1.5 font-semibold text-xs text-green ">
-                              Pesanan Selesai
-                            </div>
-                          )}
-                        </div>
+                        <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-[10px] font-medium text-gray-600 border-none shadow-none">
+                          Global Status: {getOrderStatus(Number(order.current_stage_id))}
+                        </span>
                       </div>
                     </div>
                   ))
@@ -298,13 +271,13 @@ const MyOrdersPage = () => {
         </div>
       </div>
 
-      {/* 🆕 POPUP MODAL DETAIL - UKURAN PAS MAX-W-[1000PX] SEPERTI KONTEN UTAMA + BLUR BACKDROP */}
+      {/* ─── POPUP MODAL DETAIL ─── */}
       {openOrderDetail && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="max-w-[1000px] w-full bg-white rounded-2xl shadow-sm overflow-hidden my-auto">
             
             {/* HEADER POPUP */}
-            <div className="flex justify-between items-center px-6 py-5 border-b border-gray -200">
+            <div className="flex justify-between items-center px-6 py-5 border-b border-gray-200">
               <div className="flex items-center gap-2.5">
                 <span className="w-7 h-7 rounded-lg bg-blue text-white flex items-center justify-center">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -324,13 +297,13 @@ const MyOrdersPage = () => {
 
             {/* AREA UTAMA POPUP */}
             <div className="p-6">
-              <div className="bg-white p-5 rounded-xl border-gray -200 border shadow-sm">
+              <div className="bg-white p-5 rounded-xl border-gray-200 border shadow-sm">
                 
                 {/* Header Order Card */}
-                <div className="flex justify-between items-center border-b border-gray -200 pb-2 mb-2">
+                <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-2">
                   <div>
                     <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">
-                      Order #{openOrderDetail.id}
+                      Order #{openOrderDetail.order_code || openOrderDetail.id}
                     </p>
                   </div>
                   <span
@@ -347,63 +320,68 @@ const MyOrdersPage = () => {
                 {/* List Item Produk */}
                 <div className="space-y-3 mb-4">
                   {openOrderDetail.order_items &&
-                    openOrderDetail.order_items.map((item: any, idx: number) => (
-                      <div key={idx} className="flex gap-3 items-center justify-between">
-                        <div className="flex gap-3 items-center flex-grow">
-                          <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
-                            <img
-                              src={
-                                item.product?.photo
-                                  ? `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/storage/${item.product.photo}`
-                                  : "/placeholder.png"
-                              }
-                              alt={item.product?.name}
-                              className="w-full h-full object-cover"
-                            />
+                    openOrderDetail.order_items.map((item: any, idx: number) => {
+                      const currentItemStageId = Number(item.order_stage_id || openOrderDetail.current_stage_id);
+                      return (
+                        <div key={idx} className="flex gap-3 items-center justify-between">
+                          <div className="flex gap-3 items-center flex-grow">
+                            <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
+                              <img
+                                src={
+                                  item.product?.photo
+                                    ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${item.product.photo}`
+                                    : "/placeholder.png"
+                                }
+                                alt={item.product?.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-grow">
+                              <h4 className="font-semibold text-dark text-sm">
+                                {item.product?.name || "Produk"}
+                              </h4>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                Variasi: {item.panjang > 0 ? `${item.panjang}x${item.lebar}cm` : "Standar"}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-xs font-medium text-gray-600">x{item.quantity}</p>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex-grow">
-                            <h4 className="font-semibold text-dark text-sm">
-                              {item.product?.name || "Produk"}
-                            </h4>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              Variasi: {item.panjang > 0 ? `${item.panjang}x${item.lebar}cm` : "Standar"}
-                            </p>
-                            <p className="text-xs font-medium text-gray-600 mt-1">x{item.quantity}</p>
-                          </div>
-                        </div>
 
-                        {/* 🆕 TOMBOL CHAT PINDAH KE SINI JUGA (DI DALAM POPUP MODAL) */}
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <p className="font-semibold text-sm text-dark">
-                            Rp {Number(item.price).toLocaleString("id-ID")}
-                          </p>
-                          {(Number(openOrderDetail.current_stage_id) === 3) && openOrderDetail.designer ? (
-                            <button
-                              onClick={() => {
-                                router.push(`/chat/${openOrderDetail.id}?item=${item.id}`);
-                                setOpenOrderDetail(null);
-                              }}
-                              className="inline-flex items-center gap-1.5 font-medium text-[11px] text-white border border-blue-500 bg-blue py-1.5 px-2.5 rounded-lg transition duration-150"
-                            >
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M21 12c0 4.418-4.03 8-9 8a9.7 9.7 0 01-3.13-.51L3 21l1.66-4.32A7.93 7.93 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                              </svg>
-                              Chat Item
-                            </button>
-                          ) : null}
+                          {/* TOMBOL CHAT PER ITEM PRODUK */}
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            <p className="font-semibold text-sm text-dark">
+                              Rp {Number(item.price * item.quantity).toLocaleString("id-ID")}
+                            </p>
+                            {(currentItemStageId === 1 || currentItemStageId === 3 || currentItemStageId === 6) && openOrderDetail.designer_id ? (
+                              <button
+                                onClick={() => {
+                                  router.push(`/chat/${openOrderDetail.id}?item=${item.id}`);
+                                  setOpenOrderDetail(null);
+                                }}
+                                className="inline-flex items-center gap-1.5 font-medium text-[11px] text-white border border-blue-500 bg-blue py-1.5 px-2.5 rounded-lg transition duration-150 hover:bg-blue-dark shadow-sm"
+                              >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M21 12c0 4.418-4.03 8-9 8a9.7 9.7 0 01-3.13-.51L3 21l1.66-4.32A7.93 7.93 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                                </svg>
+                                Chat Item
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
 
                 {/* INFO STATUS & RELASI DB KHUSUS */}
-                <div className="bg-white p-3 border border-gray -200 rounded-xl mb-4 text-xs space-y-2">
+                <div className="bg-white p-3 border border-gray-200 rounded-xl mb-4 text-xs space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-400 font-semibold">Status Alur Sistem:</span>
+                    <span className="text-gray-400 font-semibold">Status Alur Sistem (Global):</span>
                     <span className="text-dark font-bold">{getOrderStatus(Number(openOrderDetail.current_stage_id))}</span>
                   </div>
                   {openOrderDetail.designer && (
-                    <div className="flex justify-between border-t border-gray -200 pt-1.5">
+                    <div className="flex justify-between border-t border-gray-200 pt-1.5">
                       <span className="text-gray-400 font-semibold">Desainer Pendamping:</span>
                       <span className="text-dark font-bold">{openOrderDetail.designer.name}</span>
                     </div>
@@ -411,7 +389,7 @@ const MyOrdersPage = () => {
                 </div>
 
                 {/* Rincian Total Bayar Atas */}
-                <div className="flex flex-wrap justify-between items-center gap-3 border-t border-gray -200 pt-3">
+                <div className="flex flex-wrap justify-between items-center gap-3 border-t border-gray-200 pt-3">
                   <div className="text-sm">
                     <span className="text-gray-400">Total: </span>
                     <span className="font-bold text-blue-500">
@@ -431,7 +409,7 @@ const MyOrdersPage = () => {
                     )}
                     {Number(openOrderDetail.current_stage_id) === 5 && (
                       <div className="inline-flex items-center gap-1.5 font-semibold text-xs text-green ">
-                        Pesanan Selesai
+                        ✓ Pesanan Selesai
                       </div>
                     )}
                   </div>
@@ -447,4 +425,10 @@ const MyOrdersPage = () => {
   );
 };
 
-export default MyOrdersPage;
+export default function MyOrdersPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Memuat riwayat pesanan...</div>}>
+      <MyOrdersContent />
+    </Suspense>
+  );
+}

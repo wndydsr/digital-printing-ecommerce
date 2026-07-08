@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Breadcrumb from "../Common/Breadcrumb";
 import { initEcho } from "@/lib/echo";
@@ -47,8 +47,7 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   menunggu: { label: "Menunggu", className: "bg-gray-2 text-dark-2" },
 };
 
-// 🆕 Tipe data parameter (Props) ditambahkan orderItemId
-const ChatDesainer = ({ orderId, orderItemId }: { orderId: string; orderItemId?: string }) => {
+const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderItemId?: string }) => {
   const router = useRouter();
 
   const [orderInfo, setOrderInfo] = useState<OrderInfo | null>(null);
@@ -56,8 +55,9 @@ const ChatDesainer = ({ orderId, orderItemId }: { orderId: string; orderItemId?:
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-  const ASSET_URL = API_URL ? API_URL.replace(/\/api$/, "").replace(/\/api\/$/, "") : "";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+  // Ambil URL dasar host tanpa suffix /api untuk render asset storage hosting
+  const ASSET_URL = API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL;
 
   const [showRevisi, setShowRevisi] = useState(false);
   const [revisiNote, setRevisiNote] = useState("");
@@ -69,33 +69,32 @@ const ChatDesainer = ({ orderId, orderItemId }: { orderId: string; orderItemId?:
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const syncPesanTerbaru = async () => {
+    try {
+      const url = orderItemId 
+        ? `${API_URL}/api/orders/${orderId}/messages?item_id=${orderItemId}`
+        : `${API_URL}/api/orders/${orderId}/messages`;
+
+      const responseMessages = await fetch(url, {
+        headers: { 
+          "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          "Accept": "application/json"
+        },
+      });
+      if (responseMessages.ok) {
+        const dataMessages = await responseMessages.json();
+        setMessages(dataMessages.reverse());
+      }
+    } catch (err) {
+      console.error("Gagal sinkronisasi data gambar real-time:", err);
+    }
+  };
+
   useEffect(() => {
     initEcho();
     if (!orderId || !window.Echo) return;
 
     const channel = window.Echo.private(`chat.${orderId}`);
-
-    const syncPesanTerbaru = async () => {
-      try {
-        // 🆕 Tambahkan query parameter item_id jika ada agar sinkronisasi tersaring
-        const url = orderItemId 
-          ? `${API_URL}/api/orders/${orderId}/messages?item_id=${orderItemId}`
-          : `${API_URL}/api/orders/${orderId}/messages`;
-
-        const responseMessages = await fetch(url, {
-          headers: { 
-            "Authorization": `Bearer ${localStorage.getItem("token")}`,
-            "Accept": "application/json"
-          },
-        });
-        if (responseMessages.ok) {
-          const dataMessages = await responseMessages.json();
-          setMessages(dataMessages.reverse());
-        }
-      } catch (err) {
-        console.error("Gagal sinkronisasi data gambar real-time:", err);
-      }
-    };
 
     channel.listen('.MessageSent', (e: any) => {
       const incomingMessage = e.message || e;
@@ -103,7 +102,6 @@ const ChatDesainer = ({ orderId, orderItemId }: { orderId: string; orderItemId?:
         incomingMessage.is_design = true;
       }
 
-      // 🆕 Jika chat dibatasi per item, abaikan pesan real-time yang bukan untuk item ini
       if (orderItemId && incomingMessage.order_item_id && String(incomingMessage.order_item_id) !== String(orderItemId)) {
         return;
       }
@@ -111,7 +109,14 @@ const ChatDesainer = ({ orderId, orderItemId }: { orderId: string; orderItemId?:
       const dariDesainer = incomingMessage.sender === "desainer";
       const indikasiGambar = incomingMessage.file || incomingMessage.is_design || (incomingMessage.message && incomingMessage.message.includes("pratinjau desain"));
 
-      if (dariDesainer || indikasiGambar) {
+      if (dariDesainer && indikasiGambar) {
+        setOrderInfo(prev => prev ? { ...prev, status: "dikerjakan" } : null);
+        setMessages((prev) => {
+          if (prev.some(m => m.id === incomingMessage.id)) return prev;
+          return [...prev, incomingMessage];
+        });
+        syncPesanTerbaru(); 
+      } else if (dariDesainer || indikasiGambar) {
         syncPesanTerbaru();
       } else {
         setMessages((prev) => {
@@ -135,7 +140,6 @@ const ChatDesainer = ({ orderId, orderItemId }: { orderId: string; orderItemId?:
       if (!orderId) return;
       setIsLoading(true);
       try {
-        // 🆕 Sesuaikan URL pengambilan pesan menggunakan orderItemId jika tersedia
         const messagesUrl = orderItemId
           ? `${API_URL}/api/orders/${orderId}/messages?item_id=${orderItemId}`
           : `${API_URL}/api/orders/${orderId}/messages`;
@@ -164,7 +168,6 @@ const ChatDesainer = ({ orderId, orderItemId }: { orderId: string; orderItemId?:
           else if (orderData.current_stage_id === 3) mappedStatus = "dikerjakan";
           else if (orderData.current_stage_id === 5) mappedStatus = "selesai";
 
-          // 🆕 Cari spesifik item produk yang sesuai dengan orderItemId, jika tidak ketemu/kosong baru pakai item pertama
           const currentItem = orderItemId 
             ? orderData.order_items?.find((i: any) => String(i.id) === String(orderItemId)) || orderData.order_items?.[0]
             : orderData.order_items?.[0] || orderData.items?.[0];
@@ -221,7 +224,6 @@ const ChatDesainer = ({ orderId, orderItemId }: { orderId: string; orderItemId?:
           "Accept": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("token")}`
         },
-        // 🆕 Sertakan order_item_id ke dalam payload request POST ke backend
         body: JSON.stringify({ 
           message: tempMessage, 
           sender: "customer",
@@ -600,4 +602,10 @@ const ChatDesainer = ({ orderId, orderItemId }: { orderId: string; orderItemId?:
   );
 };
 
-export default ChatDesainer;
+export default function ChatDesainerPage(props: any) {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen bg-white text-sm text-dark-2">Memuat ruang obrolan...</div>}>
+      <ChatCustomerContent {...props} />
+    </Suspense>
+  );
+}

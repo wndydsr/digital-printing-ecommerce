@@ -1,10 +1,9 @@
 "use client";
-// 1. Pastikan menambahkan useEffect di sini
 import React, { useState, useEffect, Suspense } from "react"; 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-// ❌ HAPUS: import Script from "next/script"; (Karena memicu error CSP)
+import { checkoutFileCache } from "@/components/Checkout"; 
 
 const PaymentContent = () => {
   const searchParams = useSearchParams();
@@ -15,7 +14,6 @@ const PaymentContent = () => {
 
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // 2. AMAN DARI CSP: Load script Midtrans secara murni lewat DOM
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
@@ -48,44 +46,82 @@ const PaymentContent = () => {
         return;
       }
 
+      const pendingCheckoutRaw = sessionStorage.getItem("pendingCheckoutData");
+      if (!pendingCheckoutRaw) {
+        alert("Data transaksi tidak ditemukan. Silakan ulangi checkout.");
+        router.push("/checkout");
+        return;
+      }
+      const pendingCheckoutData = JSON.parse(pendingCheckoutRaw);
 
-    // 1. Ambil URL secara dinamis dari file .env kamu
-    const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL;
+      const formData = new FormData();
 
-    // 2. Tambahkan pengaman otomatis agar ujungnya pasti ditambahkan teks /api
-    const baseUrl = rawBaseUrl 
-      ? (rawBaseUrl.endsWith("/api") ? rawBaseUrl : `${rawBaseUrl}/api`)
-      : "https://api-printing.hanifaslam.dev/api"; // Ini hanya cadangan (fallback) jika .env tidak terbaca
+      formData.append("customer_id", pendingCheckoutData.customer_id);
+      formData.append("total_price", pendingCheckoutData.total_price);
+      formData.append("shipping_method", pendingCheckoutData.shipping_method);
+      formData.append("shipping_cost", pendingCheckoutData.shipping_cost);
+      formData.append("is_direct", pendingCheckoutData.is_direct ? "1" : "0");
+      formData.append("design_method", pendingCheckoutData.design_method);
+      formData.append("shipping_latitude", pendingCheckoutData.shipping_latitude);
+      formData.append("shipping_longitude", pendingCheckoutData.shipping_longitude);
+      formData.append("orderId", orderId);
+      formData.append("totalHarga", amount); 
 
-    // 3. Jalankan fetch checkout secara aman
-    const response = await fetch(`${baseUrl}/checkout`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        orderId: orderId,
-        totalHarga: Number(amount),
-      }),
-    });
+      if (pendingCheckoutData.items && Array.isArray(pendingCheckoutData.items)) {
+        pendingCheckoutData.items.forEach((item: any, index: number) => {
+          formData.append(`items[${index}][id]`, item.id.toString());
+          formData.append(`items[${index}][product_id]`, item.product_id.toString());
+          formData.append(`items[${index}][quantity]`, item.quantity.toString());
+          formData.append(`items[${index}][panjang]`, item.panjang.toString());
+          formData.append(`items[${index}][lebar]`, item.lebar.toString());
+          formData.append(`items[${index}][need_design]`, item.need_design);
+          
+          if (item.dummy_file_name) {
+            formData.append(`items[${index}][dummy_file_name]`, item.dummy_file_name);
+          }
+
+          if (item.attributes && Array.isArray(item.attributes)) {
+            item.attributes.forEach((attrId: string) => {
+              formData.append(`items[${index}][attributes][]`, attrId);
+            });
+          }
+
+          if (pendingCheckoutData.is_direct && pendingCheckoutData.design_method === "ready-to-print" && checkoutFileCache.readyDesignFile) {
+            formData.append(`items[${index}][design_file]`, checkoutFileCache.readyDesignFile);
+          }
+        });
+      }
+
+      const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const baseUrl = rawBaseUrl.endsWith("/api") ? rawBaseUrl : `${rawBaseUrl}/api`;
+
+      const response = await fetch(`${baseUrl}/checkout`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
       const data = await response.json();
 
       if (!response.ok || !data.token) {
-        throw new Error(data.error || "Gagal mendapatkan token pembayaran dari server.");
+        throw new Error(data.error || data.message || "Gagal mendapatkan token pembayaran dari server.");
       }
 
-      // Memanggil Snap Pay
       (window as any).snap.pay(data.token, {
         onSuccess: function (result: any) {
           alert("Pembayaran Berhasil!");
-          router.push("/my-account?tab=orders");
+          sessionStorage.removeItem("pendingCheckoutData");
+          sessionStorage.removeItem("directCheckoutItem");
+          router.push(`/invoice/${data.order_id}`);
         },
         onPending: function (result: any) {
           alert("Menunggu Pembayaran Selesai.");
-          router.push("/my-account?tab=orders");
+          sessionStorage.removeItem("pendingCheckoutData");
+          sessionStorage.removeItem("directCheckoutItem");
+          router.push(`/invoice/${data.order_id}`);
         },
         onError: function (result: any) {
           alert("Pembayaran Gagal! Silakan coba lagi.");
@@ -103,8 +139,6 @@ const PaymentContent = () => {
 
   return (
     <section className="py-20 bg-gray-2 min-h-screen flex items-center justify-center mt-10">
-      {/* ❌ Komponen <Script /> bawaan Next.js sudah dihapus dari sini */}
-
       <div className="max-w-[550px] w-full mx-auto px-4">
         <div className="bg-white shadow-1 rounded-[10px] p-6 sm:p-10 text-center">
           

@@ -56,7 +56,6 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
   const [isLoading, setIsLoading] = useState(true);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-  // Ambil URL dasar host tanpa suffix /api untuk render asset storage hosting
   const ASSET_URL = API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL;
 
   const [showRevisi, setShowRevisi] = useState(false);
@@ -83,7 +82,11 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
       });
       if (responseMessages.ok) {
         const dataMessages = await responseMessages.json();
-        setMessages(dataMessages.reverse());
+        if (Array.isArray(dataMessages)) {
+          setMessages(dataMessages.reverse());
+        } else {
+          setMessages([]);
+        }
       }
     } catch (err) {
       console.error("Gagal sinkronisasi data gambar real-time:", err);
@@ -135,6 +138,7 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
     };
   }, [orderId, orderItemId, API_URL]);
 
+  // 🌟 JALUR CLEAR: Hanya ada 1 loadData utama yang sudah diproteksi Array.isArray
   useEffect(() => {
     const loadData = async () => {
       if (!orderId) return;
@@ -151,7 +155,12 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
           }
         });
         const dataMessages = await responseMessages.json();
-        setMessages(dataMessages.reverse());
+        
+        if (Array.isArray(dataMessages)) {
+          setMessages(dataMessages.reverse());
+        } else {
+          setMessages([]);
+        }
         
         const responseOrder = await fetch(`${API_URL}/api/orders/${orderId}`, {
           headers: {
@@ -241,7 +250,9 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}`, "Accept": "application/json" }
       });
       const data = await fetchResponse.json();
-      setMessages(data.reverse());
+      if (Array.isArray(data)) {
+        setMessages(data.reverse());
+      }
     } catch (error) {
       console.error("Gagal mengirim pesan:", error);
       setInputMessage(tempMessage);
@@ -301,7 +312,9 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       const data = await fetchResponse.json();
-      setMessages(data.reverse());
+      if (Array.isArray(data)) {
+        setMessages(data.reverse());
+      }
     } catch (err) {
       alert("Gagal mengirim data revisi.");
     }

@@ -66,6 +66,7 @@ const PaymentContent = () => {
       formData.append("shipping_longitude", pendingCheckoutData.shipping_longitude);
       formData.append("orderId", orderId);
       formData.append("totalHarga", amount); 
+      formData.append("platform", "customer")
 
       if (pendingCheckoutData.items && Array.isArray(pendingCheckoutData.items)) {
         pendingCheckoutData.items.forEach((item: any, index: number) => {

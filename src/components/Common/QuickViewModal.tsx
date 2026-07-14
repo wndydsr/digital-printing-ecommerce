@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 export const directDirectFileCache = {
   readyDesignFile: null as File | null,
   supportFiles: [] as File[],
+  catatan: "" as string,
 };
 
 
@@ -198,6 +199,7 @@ const QuickViewModal = () => {
       // 🔥 SIMPAN BERKAS ASLI KE MEMORI RUNTIME (ANTI-SERIAlISASI JSON)
       directDirectFileCache.readyDesignFile = readyDesignFile;
       directDirectFileCache.supportFiles = supportFiles;
+      directDirectFileCache.catatan = designNotes;
 
       const directItem = {
         id: product.id,
@@ -209,6 +211,7 @@ const QuickViewModal = () => {
         panjang: isCustom ? panjang : "0",
         lebar: isCustom ? lebar : "0",
         selectedOptions: selectedAttributes,
+        catatan: designNotes,
         designNotes: designNotes,
         designMethod: designMethod,
         design_method: designMethod,

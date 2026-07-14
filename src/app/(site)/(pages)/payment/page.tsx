@@ -76,6 +76,7 @@ const PaymentContent = () => {
           formData.append(`items[${index}][panjang]`, item.panjang.toString());
           formData.append(`items[${index}][lebar]`, item.lebar.toString());
           formData.append(`items[${index}][need_design]`, item.need_design);
+          formData.append(`items[${index}][catatan]`, item.catatan || "");
           
           if (item.dummy_file_name) {
             formData.append(`items[${index}][dummy_file_name]`, item.dummy_file_name);

@@ -177,6 +177,7 @@ const Checkout = () => {
             lebar: item.lebar || 0,
             need_design: itemMethod === "need-design" ? "1" : "0",
             dummy_file_name: item.dummy_file_name || null, 
+            catatan: isDirect ? directDirectFileCache.catatan : (item.catatan || ""),
             attributes: item.selectedOptions 
               ? Object.values(item.selectedOptions).map((opt: any) => String(opt.id))
               : []

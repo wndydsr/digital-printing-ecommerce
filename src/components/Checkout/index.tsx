@@ -169,6 +169,9 @@ const Checkout = () => {
         shipping_longitude: selectedLng.toString(),
         items: cartItems.map((item) => {
           const itemMethod = item.designMethod || item.design_method || "ready-to-print";
+          const dynamicDummyName = itemMethod === "need-design"
+            ? (isDirect ? directDirectFileCache.supportFiles?.[0]?.name : item.dummy_file_name) || "materi_referensi_pembeli.png"
+            : (item.dummy_file_name || null);
           return {
             id: item.id,
             product_id: item.product_id || item.id,
@@ -176,7 +179,7 @@ const Checkout = () => {
             panjang: item.panjang || 0,
             lebar: item.lebar || 0,
             need_design: itemMethod === "need-design" ? "1" : "0",
-            dummy_file_name: item.dummy_file_name || null, 
+            dummy_file_name: dynamicDummyName,
             catatan: isDirect ? directDirectFileCache.catatan : (item.catatan || ""),
             attributes: item.selectedOptions 
               ? Object.values(item.selectedOptions).map((opt: any) => String(opt.id))

@@ -106,14 +106,6 @@ const CartSidebarModal = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <Link
-                onClick={() => closeCartModal()}
-                href="/cart"
-                className="w-full flex justify-center font-medium text-blue border-2 border-blue bg-white py-[11px] px-6 rounded-md ease-out duration-200 hover:bg-blue hover:text-white"
-              >
-                View Cart
-              </Link>
-
               {/* 🔥 TAMBAHKAN ONCLICK UNTUK MENUTUP MODAL SAAT CHECKOUT */}
               <Link
                 onClick={() => closeCartModal()} 

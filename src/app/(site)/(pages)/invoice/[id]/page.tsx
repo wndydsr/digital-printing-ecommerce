@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CheckCircle2, Printer, ArrowLeft, CreditCard, ShoppingBag, Check } from "lucide-react";
-import Link from "next/link";
 
 export default function InvoicePage() {
   const { id } = useParams();
@@ -161,9 +160,14 @@ export default function InvoicePage() {
           <div className="pt-4 flex justify-end print:hidden">
             <button
               onClick={() => router.push("/my-account?tab=orders")}
-              className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto px-6 py-3 font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5"
+              style={{ 
+                backgroundColor: '#ffffff', 
+                color: '#2563eb', 
+                border: '1px solid #2563eb' 
+              }}
             >
-              <Check className="w-4 h-4" /> Oke, Selesai
+              <Check className="w-4 h-4" style={{ stroke: '#2563eb' }} /> Oke, Selesai
             </button>
           </div>
 

@@ -170,6 +170,12 @@ const QuickViewModal = () => {
           lebar: isCustom ? lebar : "0",    
           selectedOptions: selectedAttributes,
           designMethod: designMethod, 
+
+          design_method: designMethod,
+          dummy_file_name: designMethod === "need-design" 
+            ? (supportFiles?.[0]?.name || "materi_referensi_pembeli.png") 
+            : null,
+            
           imgs: { previews: [photoUrl], thumbnails: [photoUrl] }
         } as any));
         

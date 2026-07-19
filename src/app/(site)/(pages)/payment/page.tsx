@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { checkoutFileCache } from "@/components/Checkout"; 
+import { directDirectFileCache } from "@/components/Common/QuickViewModal";
 
 const PaymentContent = () => {
   const searchParams = useSearchParams();
@@ -88,8 +89,14 @@ const PaymentContent = () => {
             });
           }
 
-          if (pendingCheckoutData.is_direct && pendingCheckoutData.design_method === "ready-to-print" && checkoutFileCache.readyDesignFile) {
-            formData.append(`items[${index}][design_file]`, checkoutFileCache.readyDesignFile);
+          if (pendingCheckoutData.is_direct) {
+            if (pendingCheckoutData.design_method === "ready-to-print" && checkoutFileCache.readyDesignFile) {
+              formData.append(`items[${index}][design_file]`, checkoutFileCache.readyDesignFile);
+            } 
+            else if (pendingCheckoutData.design_method === "need-design" && directDirectFileCache.supportFiles?.length > 0) {
+              const singleReferenceFile = directDirectFileCache.supportFiles[0];
+              formData.append(`items[${index}][reference_files]`, singleReferenceFile);
+            }
           }
         });
       }
@@ -155,9 +162,9 @@ const PaymentContent = () => {
               Rp {Number(amount).toLocaleString("id-ID")}
             </p>
             <div className="text-xs space-y-1 text-gray-600 border-t border-gray-200 pt-3">
-              <p><strong>Order ID:</strong> {orderId}</p>
+              {/* <p><strong>Order ID:</strong> {orderId}</p> */}
               <p className="text-gray-400 mt-2">
-                * Metode pembayaran seperti QRIS, Transfer Bank (Virtual Account), Mandiri Clickpay, dll. akan tersedia langsung di dalam pop-up Midtrans.
+                * Metode pembayaran seperti QRIS, Transfer Bank (Virtual Account) dll. akan tersedia langsung di dalam pop-up Midtrans.
               </p>
             </div>
           </div>

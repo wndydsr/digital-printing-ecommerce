@@ -77,25 +77,47 @@ export const cart = createSlice({
 export const selectCartItems = (state: RootState) => state.cartReducer.items;
 
 export const selectTotalPrice = createSelector([selectCartItems], (items) => {
-  return items.reduce((total, item) => {
-    let price = Number(item.price || 0);
+  return items.reduce((total, item: any) => {
+    // 1. Ambil harga dasar produk
+    let basePrice = Number(item.price || item.product?.price || 0);
 
-    if (item.selectedOptions && typeof item.selectedOptions === 'object') {
-      Object.values(item.selectedOptions).forEach((opt: any) => {
-        price += Number(opt.additional_price || 0);
+    // 2. Jika harga masih 0 atau ingin memastikan, hitung dari tambahan harga atribut (additional_price)
+    let selectedOpts = item.selectedOptions || item.selected_options || {};
+    if (typeof selectedOpts === "string") {
+      try { selectedOpts = JSON.parse(selectedOpts); } catch { selectedOpts = {}; }
+    }
+
+    if (item.product?.attributes && Array.isArray(item.product.attributes) && typeof selectedOpts === "object") {
+      item.product.attributes.forEach((attr: any) => {
+        const selectedVal = selectedOpts[attr.name] || selectedOpts[attr.id];
+        if (selectedVal && attr.values && Array.isArray(attr.values)) {
+          const matchedVal = attr.values.find(
+            (v: any) => String(v.name) === String(selectedVal) || String(v.id) === String(selectedVal)
+          );
+          if (matchedVal && matchedVal.additional_price) {
+            basePrice += Number(matchedVal.additional_price || 0);
+          }
+        }
       });
     }
 
+    // 3. Hitung perkalian luas jika produk kustom (Panjang x Lebar)
     const panjang = Number(item.panjang || 0);
     const lebar = Number(item.lebar || 0);
-    let finalPricePerUnit = price;
+    const isCustom = item.product?.is_custom == 1 || item.product?.is_custom === true;
     
-    if (panjang > 0 && lebar > 0) {
+    let finalPricePerUnit = basePrice;
+    if (isCustom && panjang > 0 && lebar > 0) {
       const luasM2 = (panjang * lebar) / 10000;
-      finalPricePerUnit = luasM2 * price;
+      finalPricePerUnit = luasM2 * basePrice;
     }
 
-    return total + (finalPricePerUnit * item.quantity);
+    // Jika item.price dari quickview sudah membawa angka valid dan murni, gunakan itu
+    if (Number(item.price) > 0 && !isCustom && Object.keys(selectedOpts).length === 0) {
+      finalPricePerUnit = Number(item.price);
+    }
+
+    return total + (finalPricePerUnit * Number(item.quantity || 1));
   }, 0);
 });
 

@@ -32,26 +32,63 @@ export default function CartInitializer() {
             const rawItems = Array.isArray(json) ? json : [];
 
             if (rawItems.length > 0) {
-              const formattedItems = rawItems.map((item: any) => ({
-                id: item.id,
-                product_id: item.product_id,
-                title: item.product?.name || "Produk",
-                price: item.product?.price || 0,
-                quantity: item.quantity,
-                panjang: item.panjang || 0,
-                lebar: item.lebar || 0,
-                selectedOptions: item.selected_options || {},
-                img: item.product?.photo 
-                  ? (item.product.photo.startsWith("http") ? item.product.photo : `${process.env.NEXT_PUBLIC_API_URL}/storage/${item.product.photo}`) 
-                  : "/placeholder.png",
-                imgs: {
-                  previews: [item.product?.photo ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${item.product.photo}` : "/placeholder.png"],
-                  thumbnails: [item.product?.photo ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${item.product.photo}` : "/placeholder.png"]
-                },
-                need_design: !!item.need_design,
-                design_method: (item.need_design ? "need-design" : "ready-to-print") as "need-design" | "ready-to-print",
-                dummy_file_name: item.design_file || null,
-              }));
+              const formattedItems = rawItems.map((item: any) => {
+                const product = item.product || {};
+                let basePrice = Number(product.price || 0);
+
+                // Parse selected_options (bisa berupa string JSON atau objek)
+                let selectedOpts = item.selected_options || item.selectedOptions || {};
+                if (typeof selectedOpts === "string") {
+                  try { selectedOpts = JSON.parse(selectedOpts); } catch { selectedOpts = {}; }
+                }
+
+                // 🔥 HITUNG TAMBAHAN HARGA DARI ATRIBUT PRODUK
+                if (product.attributes && Array.isArray(product.attributes) && typeof selectedOpts === "object") {
+                  product.attributes.forEach((attr: any) => {
+                    const selectedVal = selectedOpts[attr.name] || selectedOpts[attr.id];
+                    if (selectedVal && attr.values && Array.isArray(attr.values)) {
+                      const matchedVal = attr.values.find(
+                        (v: any) => String(v.name) === String(selectedVal) || String(v.id) === String(selectedVal)
+                      );
+                      if (matchedVal && matchedVal.additional_price) {
+                        basePrice += Number(matchedVal.additional_price || 0);
+                      }
+                    }
+                  });
+                }
+
+                // 🔥 HITUNG PERKALIAN LUAS JIKA PRODUK KUSTOM (PANJANG x LEBAR)
+                const panjang = Number(item.panjang || 0);
+                const lebar = Number(item.lebar || 0);
+                const isCustom = product.is_custom == 1 || product.is_custom === true;
+                
+                let finalPricePerUnit = basePrice;
+                if (isCustom && panjang > 0 && lebar > 0) {
+                  const luasM2 = (panjang * lebar) / 10000;
+                  finalPricePerUnit = luasM2 * basePrice;
+                }
+
+                return {
+                  id: item.id,
+                  product_id: item.product_id,
+                  title: product.name || "Produk",
+                  price: finalPricePerUnit, // 🔥 Harga matang per unit hasil kalkulasi frontend
+                  quantity: item.quantity,
+                  panjang: item.panjang || 0,
+                  lebar: item.lebar || 0,
+                  selectedOptions: selectedOpts,
+                  img: product.photo 
+                    ? (product.photo.startsWith("http") ? product.photo : `${process.env.NEXT_PUBLIC_API_URL}/storage/${product.photo}`) 
+                    : "/placeholder.png",
+                  imgs: {
+                    previews: [product.photo ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${product.photo}` : "/placeholder.png"],
+                    thumbnails: [product.photo ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${product.photo}` : "/placeholder.png"]
+                  },
+                  need_design: !!item.need_design,
+                  design_method: (item.need_design ? "need-design" : "ready-to-print") as "need-design" | "ready-to-print",
+                  dummy_file_name: item.design_file || null,
+                };
+              });
 
               dispatch(setCartItems(formattedItems));
             } else {

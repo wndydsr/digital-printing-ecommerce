@@ -13,7 +13,6 @@ export const directDirectFileCache = {
   catatan: "" as string,
 };
 
-
 const QuickViewModal = () => {
   const { isModalOpen, closeModal } = useModalContext();
   const [quantity, setQuantity] = useState(1);
@@ -97,11 +96,37 @@ const QuickViewModal = () => {
     return true;
   };
 
+  // 🔥 PARSER ATRIBUT TEKS (Label -> Nama Pilihan)
+  const getFormattedOptions = () => {
+    const formattedOptions: Record<string, string> = {};
+    if (selectedAttributes && typeof selectedAttributes === "object") {
+      Object.entries(selectedAttributes).forEach(([key, val]: [string, any]) => {
+        const attrObj = product?.attributes?.find(
+          (a: any) => String(a.id || a.name) === String(key)
+        );
+        const labelName = attrObj?.name || key;
+        const valName = val?.name || String(val);
+
+        formattedOptions[labelName] = valName;
+      });
+    }
+    return formattedOptions;
+  };
+
+  // 🔥 AMBIL ARRAY ID ANGKA UNTUK BACKEND
+  const getAttributeIds = () => {
+    if (!selectedAttributes || typeof selectedAttributes !== "object") return [];
+    return Object.values(selectedAttributes)
+      .map((val: any) => String(val?.id || val))
+      .filter((id) => !isNaN(Number(id)));
+  };
+
   const createCartPayload = (customerId: string) => {
     const formData = new FormData();
     formData.append("customer_id", customerId);
     formData.append("product_id", product.id.toString());
     formData.append("quantity", quantity.toString());
+    formData.append("price", hargaPerItem.toString()); // 🔥 HARGA TERKIRIM DAN TERSIMPAN DI DB CART
     formData.append("panjang", isCustom ? panjang : "0");
     formData.append("lebar", isCustom ? lebar : "0");
     formData.append("catatan", designNotes);
@@ -109,16 +134,16 @@ const QuickViewModal = () => {
     const isNeedDesign = designMethod === "need-design";
     formData.append("need_design", isNeedDesign ? "1" : "0");
     formData.append("tahapan_order", isNeedDesign ? "antrean desain" : "siap cetak");
-    formData.append("selected_options", JSON.stringify(selectedAttributes));
+
+    const formattedOptions = getFormattedOptions();
+    formData.append("selected_options", JSON.stringify(formattedOptions));
 
     // 🔥 SESUAIKAN DENGAN VALIDASI LARAVEL
     if (isNeedDesign) {
-      // Kirim sebagai array reference_files
       supportFiles.forEach((file) => {
         formData.append("reference_files[]", file);
       });
     } else {
-      // Kirim sebagai design_file (tunggal sesuai controller)
       if (readyDesignFile) {
         formData.append("design_file", readyDesignFile);
       }
@@ -159,16 +184,20 @@ const QuickViewModal = () => {
           throw new Error("Gagal menyimpan ke database");
         }
 
+        const formattedOptions = getFormattedOptions();
+        const attributeIds = getAttributeIds();
+
         dispatch(addItemToCart({
           id: product.id,
           title: product.name,
-          price: Number(product.price), 
+          price: hargaPerItem, // 🔥 AMBIL HARGA MATANG
           quantity: quantity,
           photo: product.photo,
           img: photoUrl,
           panjang: isCustom ? panjang : "0", 
           lebar: isCustom ? lebar : "0",    
-          selectedOptions: selectedAttributes,
+          selectedOptions: formattedOptions,
+          attributeIds: attributeIds,
           designMethod: designMethod, 
 
           design_method: designMethod,
@@ -202,7 +231,9 @@ const QuickViewModal = () => {
     }
 
     if (product) {
-      // 🔥 SIMPAN BERKAS ASLI KE MEMORI RUNTIME (ANTI-SERIAlISASI JSON)
+      const formattedOptions = getFormattedOptions();
+      const attributeIds = getAttributeIds();
+
       directDirectFileCache.readyDesignFile = readyDesignFile;
       directDirectFileCache.supportFiles = supportFiles;
       directDirectFileCache.catatan = designNotes;
@@ -210,13 +241,14 @@ const QuickViewModal = () => {
       const directItem = {
         id: product.id,
         title: product.name,
-        price: Number(product.price), 
+        price: hargaPerItem, 
         quantity: quantity,
         photo: product.photo,
         img: photoUrl,
         panjang: isCustom ? panjang : "0",
         lebar: isCustom ? lebar : "0",
-        selectedOptions: selectedAttributes,
+        selectedOptions: formattedOptions,
+        attributeIds: attributeIds,
         catatan: designNotes,
         designNotes: designNotes,
         designMethod: designMethod,

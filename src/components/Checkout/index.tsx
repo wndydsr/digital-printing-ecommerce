@@ -104,20 +104,41 @@ const Checkout = () => {
   const totalPayment = totalPrice + shippingCost;
   const allCartItems = useAppSelector((state: any) => state.cartReducer.items);
 
+  // ─── 🛠️ FIX KALKULASI HARGA CHECKOUT AGAR TIDAK 0 ───
   const calculateItemPrice = (item: any) => {
-    let price = Number(item.price || item.discountedPrice || 0);
-    if (item.selectedOptions && typeof item.selectedOptions === 'object') {
-      Object.values(item.selectedOptions).forEach((opt: any) => {
-        price += Number(opt.additional_price || 0);
+    let basePrice = Number(item.price || item.product?.price || 0);
+
+    let selectedOpts = item.selectedOptions || item.selected_options || {};
+    if (typeof selectedOpts === "string") {
+      try { selectedOpts = JSON.parse(selectedOpts); } catch { selectedOpts = {}; }
+    }
+
+    // Hitung tambahan harga dari atribut produk
+    if (item.product?.attributes && Array.isArray(item.product.attributes) && typeof selectedOpts === "object") {
+      item.product.attributes.forEach((attr: any) => {
+        const selectedVal = selectedOpts[attr.name] || selectedOpts[attr.id];
+        if (selectedVal && attr.values && Array.isArray(attr.values)) {
+          const matchedVal = attr.values.find(
+            (v: any) => String(v.name) === String(selectedVal) || String(v.id) === String(selectedVal)
+          );
+          if (matchedVal && matchedVal.additional_price) {
+            basePrice += Number(matchedVal.additional_price || 0);
+          }
+        }
       });
     }
+
+    // Hitung perkalian luas dimensi (Panjang x Lebar)
     const panjang = Number(item.panjang || 0);
     const lebar = Number(item.lebar || 0);
-    if (panjang > 0 && lebar > 0) {
+    const isCustom = item.product?.is_custom == 1 || item.product?.is_custom === true;
+
+    if (isCustom && panjang > 0 && lebar > 0) {
       const luasM2 = (panjang * lebar) / 10000;
-      price = luasM2 * price;
+      return luasM2 * basePrice;
     }
-    return price;
+
+    return basePrice > 0 ? basePrice : Number(item.price || 0);
   };
 
   useEffect(() => {
@@ -172,6 +193,18 @@ const Checkout = () => {
           const dynamicDummyName = itemMethod === "need-design"
             ? (isDirect ? directDirectFileCache.supportFiles?.[0]?.name : item.dummy_file_name) || "materi_referensi_pembeli.png"
             : (item.dummy_file_name || null);
+
+          let selectedOpts = item.selectedOptions || {};
+          if (typeof selectedOpts === "string") {
+            try { selectedOpts = JSON.parse(selectedOpts); } catch { selectedOpts = {}; }
+          }
+
+          const finalAttributes = item.attributeIds && Array.isArray(item.attributeIds)
+            ? item.attributeIds
+            : (item.selectedOptions && typeof item.selectedOptions === "object"
+                ? Object.values(item.selectedOptions).map((opt: any) => String(opt.id || opt)).filter((id) => !isNaN(Number(id)))
+                : []);
+
           return {
             id: item.id,
             product_id: item.product_id || item.id,
@@ -181,9 +214,8 @@ const Checkout = () => {
             need_design: itemMethod === "need-design" ? "1" : "0",
             dummy_file_name: dynamicDummyName,
             catatan: isDirect ? directDirectFileCache.catatan : (item.catatan || ""),
-            attributes: item.selectedOptions 
-              ? Object.values(item.selectedOptions).map((opt: any) => String(opt.id))
-              : []
+            selectedOptions: selectedOpts,
+            attributes: finalAttributes
           };
         })
       };
@@ -227,7 +259,7 @@ const Checkout = () => {
                         <div><img src={item.img || "/placeholder.png"} alt="product" className="w-16 h-16 object-cover rounded-lg" /></div>
                         <div className="col-span-2">
                           <h4 className="font-medium text-dark">{item.title || item.product?.name}</h4>
-                          {Number(item.panjang) > 0 && <p className="text-xs text-gray-500">Ukuran: {item.panjang} x {item.lebar} cm</p>}
+                          {Number(item.panjang) > 0 && <p className="text-xs text-gray-500">Ukuran: {Math.round(Number(item.panjang))} x {Math.round(Number(item.lebar))} cm</p>}
                         </div>
                         <div className="text-center font-medium">{item.quantity}</div>
                         <div className="text-center">Rp {pricePerUnit.toLocaleString("id-ID")}</div>

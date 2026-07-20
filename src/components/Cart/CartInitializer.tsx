@@ -36,28 +36,32 @@ export default function CartInitializer() {
                 const product = item.product || {};
                 let basePrice = Number(product.price || 0);
 
-                // Parse selected_options (bisa berupa string JSON atau objek)
                 let selectedOpts = item.selected_options || item.selectedOptions || {};
                 if (typeof selectedOpts === "string") {
                   try { selectedOpts = JSON.parse(selectedOpts); } catch { selectedOpts = {}; }
                 }
 
-                // 🔥 HITUNG TAMBAHAN HARGA DARI ATRIBUT PRODUK
-                if (product.attributes && Array.isArray(product.attributes) && typeof selectedOpts === "object") {
+                const attributeIds: string[] = [];
+                // 🔥 Pindai additional_price dari atribut produk relasi backend
+                if (product.attributes && Array.isArray(product.attributes)) {
                   product.attributes.forEach((attr: any) => {
-                    const selectedVal = selectedOpts[attr.name] || selectedOpts[attr.id];
+                    const selectedVal = selectedOpts[attr.name] || selectedOpts[String(attr.id)];
                     if (selectedVal && attr.values && Array.isArray(attr.values)) {
                       const matchedVal = attr.values.find(
-                        (v: any) => String(v.name) === String(selectedVal) || String(v.id) === String(selectedVal)
+                        (v: any) => String(v.name).trim() === String(selectedVal).trim() || String(v.id) === String(selectedVal)
                       );
-                      if (matchedVal && matchedVal.additional_price) {
+                      if (matchedVal) {
                         basePrice += Number(matchedVal.additional_price || 0);
+                        attributeIds.push(String(matchedVal.id));
                       }
                     }
                   });
                 }
 
-                // 🔥 HITUNG PERKALIAN LUAS JIKA PRODUK KUSTOM (PANJANG x LEBAR)
+                if (basePrice === 0 && Number(item.price) > 0) {
+                  basePrice = Number(item.price);
+                }
+
                 const panjang = Number(item.panjang || 0);
                 const lebar = Number(item.lebar || 0);
                 const isCustom = product.is_custom == 1 || product.is_custom === true;
@@ -72,11 +76,12 @@ export default function CartInitializer() {
                   id: item.id,
                   product_id: item.product_id,
                   title: product.name || "Produk",
-                  price: finalPricePerUnit, // 🔥 Harga matang per unit hasil kalkulasi frontend
+                  price: finalPricePerUnit,
                   quantity: item.quantity,
                   panjang: item.panjang || 0,
                   lebar: item.lebar || 0,
                   selectedOptions: selectedOpts,
+                  attributeIds: attributeIds,
                   img: product.photo 
                     ? (product.photo.startsWith("http") ? product.photo : `${process.env.NEXT_PUBLIC_API_URL}/storage/${product.photo}`) 
                     : "/placeholder.png",

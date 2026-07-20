@@ -89,6 +89,13 @@ const PaymentContent = () => {
             });
           }
 
+          // Kirim opsi teks tambahan jika ada
+          if (item.selectedOptions && typeof item.selectedOptions === "object") {
+            Object.entries(item.selectedOptions).forEach(([key, val]) => {
+              formData.append(`items[${index}][selectedOptions][${key}]`, String(val));
+            });
+          }
+
           if (pendingCheckoutData.is_direct) {
             if (pendingCheckoutData.design_method === "ready-to-print" && checkoutFileCache.readyDesignFile) {
               formData.append(`items[${index}][design_file]`, checkoutFileCache.readyDesignFile);

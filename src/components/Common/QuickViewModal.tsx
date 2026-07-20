@@ -96,7 +96,7 @@ const QuickViewModal = () => {
     return true;
   };
 
-  // 🔥 PARSER ATRIBUT TEKS (Label -> Nama Pilihan)
+  // 🔥 PARSER ATRIBUT ASLI (KEMBALI SEPERTI SEMULA AGAR DB MENERIMA FORMATNYA)
   const getFormattedOptions = () => {
     const formattedOptions: Record<string, string> = {};
     if (selectedAttributes && typeof selectedAttributes === "object") {

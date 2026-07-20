@@ -9,8 +9,6 @@ const SingleItem = ({ item, removeItemFromCart }) => {
 
   const handleRemoveFromCart = async () => {
     try {
-      // 🔥 1. Hapus dari Database Laravel (Berdasarkan ID Item/Produk)
-      // Asumsi: endpoint delete membutuhkan ID produk atau ID cart item
       await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/cart/item/${item.id}`, {
         method: "DELETE",
         headers: {
@@ -18,8 +16,6 @@ const SingleItem = ({ item, removeItemFromCart }) => {
           "Authorization": `Bearer ${localStorage.getItem("token")}`
         }
       });
-
-      // 2. Hapus dari tampilan Redux
       dispatch(removeItemFromCart(item.id));
     } catch (error) {
       console.error("Gagal menghapus item dari database:", error);
@@ -27,30 +23,8 @@ const SingleItem = ({ item, removeItemFromCart }) => {
     }
   };
 
-  const finalPricePerUnit = (() => {
-    let price = Number(item.price || 0); // Ambil harga dasar
-    
-    // Tambah harga atribut
-    if (item.selectedOptions && typeof item.selectedOptions === 'object') {
-      Object.values(item.selectedOptions).forEach((opt: any) => {
-        price += Number(opt.additional_price || 0);
-      });
-    }
-
-    // Kalkulasi Luas
-    const panjang = Number(item.panjang || 0);
-    const lebar = Number(item.lebar || 0);
-    if (panjang > 0 && lebar > 0) {
-      const luasM2 = (panjang * lebar) / 10000;
-      price = luasM2 * price;
-    }
-    return price;
-  })();
-
-
-
-  // Mengambil harga yang benar dari Redux (mengatasi perbedaan key)
-  const itemPrice = item.price || item.discountedPrice || 0;
+  // 🔥 Harga sudah final dari Redux (QuickViewModal / CartInitializer sudah menghitung luas m2)
+  const finalPricePerUnit = Number(item.price || 0);
 
   return (
     <div className="flex items-center justify-between gap-5">

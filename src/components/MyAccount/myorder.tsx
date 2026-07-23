@@ -7,13 +7,27 @@ import Link from "next/link";
 const MyOrdersContent = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("Dalam Proses");
+  const [activeTab, setActiveTab] = useState("Menunggu Pembayaran");
   const [openOrderDetail, setOpenOrderDetail] = useState<any>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // 🛠 * FUNGSI SINKRON TAHAPAN DENGAN DATABASE
+  // 🌟 INJEKSI AUTOMATIS SCRIPT MIDTRANS SNAP
+  useEffect(() => {
+    const existingScript = document.getElementById("midtrans-snap-script");
+    if (!existingScript) {
+      const script = document.createElement("script");
+      script.id = "midtrans-snap-script";
+      script.src = "https://app.sandbox.midtrans.com/snap/snap.js"; // Ganti dengan app.midtrans.com jika Production
+      script.setAttribute("data-client-key", process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "");
+      script.async = true;
+      document.body.appendChild(script);
+    }
+    fetchOrders();
+  }, []);
+
+  // 🛠️ FUNGSI SINKRON TAHAPAN DENGAN DATABASE
   const getOrderStatus = (stageId: number) => {
     switch (stageId) {
       case 1:
@@ -28,6 +42,10 @@ const MyOrdersContent = () => {
         return "Selesai";
       case 6:
         return "Antrean Desain";
+      case 7:
+        return "Menunggu Pembayaran";
+      case 8:
+        return "Dibatalkan";
       default:
         return "Status Tidak Diketahui";
     }
@@ -80,52 +98,168 @@ const MyOrdersContent = () => {
         </svg>
       ),
     },
+    {
+      name: "Dibatalkan",
+      desc: "Pesanan yang telah dibatalkan",
+      empty: "Tidak ada pesanan dibatalkan",
+      emptySub: "Tidak ada riwayat pesanan yang dibatalkan",
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="15" y1="9" x2="9" y2="15" />
+          <line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+      ),
+    },
   ];
 
-  useEffect(() => {
-    const fetchOrders = async () => {
+  // 🛠️ KOMPONEN COUNTDOWN TIMER (Berbasis created_at + 30 menit)
+  const CountdownTimer = ({ createdAt }: { createdAt: string }) => {
+    const [timeLeft, setTimeLeft] = useState("");
+
+    useEffect(() => {
+      const calculateTime = () => {
+        const expireTime = new Date(createdAt).getTime() + 30 * 60 * 1000;
+        const difference = expireTime - new Date().getTime();
+
+        if (difference <= 0) {
+          setTimeLeft("Waktu Habis (Kadaluwarsa)");
+          return;
+        }
+
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+        const hours = Math.floor(difference / (1000 * 60 * 60));
+        setTimeLeft(`${hours > 0 ? `${hours} jam ` : ""}${minutes} menit lagi`);
+      };
+
+      calculateTime();
+      const interval = setInterval(calculateTime, 1000);
+      return () => clearInterval(interval);
+    }, [createdAt]);
+
+    return <span className="text-red-500 font-bold text-xs">⏳ Sisa Waktu Bayar: {timeLeft}</span>;
+  };
+
+  const fetchOrders = async () => {
+    const token = localStorage.getItem("token");
+    const customerStr = localStorage.getItem("customer");
+    if (!token || !customerStr) {
+      setLoading(false);
+      return;
+    }
+    const customer = JSON.parse(customerStr);
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/customer/${customer.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+      const json = await res.json();
+      setOrders(json.data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🛠️ FUNGSI UNTUK MEMBATALKAN PESANAN
+  const handleCancelOrder = async (orderId: number) => {
+    if (!confirm("Apakah Anda yakin ingin membatalkan pesanan ini?")) return;
+
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/orders/${orderId}/cancel`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (res.ok) {
+        alert("Pesanan berhasil dibatalkan.");
+        setOpenOrderDetail(null);
+        fetchOrders(); 
+      } else {
+        alert("Gagal membatalkan pesanan.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Terjadi kesalahan sistem.");
+    }
+  };
+
+  // 🌟 FUNGSI BARU: BUKA SNAP MIDTRANS UNTUK TOMBOL BAYAR SEKARANG
+  const handlePayNow = async (order: any) => {
+    try {
       const token = localStorage.getItem("token");
-      const customerStr = localStorage.getItem("customer");
-      if (!token || !customerStr) {
-        setLoading(false);
-        return;
-      }
-      const customer = JSON.parse(customerStr);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/orders/${order.id}/repay`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
 
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/orders/customer/${customer.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/json",
-            },
-          }
-        );
-        const json = await res.json();
-        setOrders(json.data || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrders();
-  }, []);
+      const json = await res.json();
 
-  // 🛠️ FILTER TAB UTAMA (Mencocokkan kedudukan order global induk)
+      if (json.token) {
+        (window as any).snap.pay(json.token, {
+          onSuccess: function () {
+            alert("Pembayaran Berhasil!");
+            setOpenOrderDetail(null);
+            fetchOrders();
+          },
+          onPending: function () {
+            alert("Menunggu pembayaran Anda diselesaikan.");
+          },
+          onError: function () {
+            alert("Pembayaran gagal, silakan coba lagi.");
+          },
+        });
+      } else {
+        alert("Gagal memuat token pembayaran: " + (json.error || "Terjadi kesalahan"));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Gagal menghubungkan ke server pembayaran.");
+    }
+  };
+
+  // 🛠️ FILTER TAB UTAMA (Disesuaikan dengan status Plotting Admin)
   const filteredOrders = orders.filter((order) => {
     const stageId = Number(order.current_stage_id);
 
     switch (activeTab) {
       case "Menunggu Pembayaran":
-        return false; 
+        
+        return stageId === 7; 
+
       case "Menunggu Verifikasi":
-        return stageId === 6;
+
+        return stageId === 6 || (stageId === 1 && !order.designer_id);
+
       case "Dalam Proses":
-        return stageId === 1 || stageId === 2 || stageId === 3 || stageId === 4;
+      
+        if ([2, 3, 4].includes(stageId)) return true;
+        if ((stageId === 6 || stageId === 1) && order.designer_id) return true;
+        return false;
+
       case "Pesanan Selesai":
+        // Stage 5: Selesai
         return stageId === 5;
+
+      case "Dibatalkan":
+        // Stage 8: Dibatalkan / Expired
+        return stageId === 8; 
+
       default:
         return false;
     }
@@ -191,6 +325,13 @@ const MyOrdersContent = () => {
                         </span>
                       </div>
 
+                      {/* Tampilkan Timer jika status Menunggu Pembayaran */}
+                      {Number(order.current_stage_id) === 7 && (
+                        <div className="mb-3 bg-red-50 p-2.5 rounded-lg border border-red-100 flex items-center justify-between">
+                          <CountdownTimer createdAt={order.created_at} />
+                        </div>
+                      )}
+
                       {/* List Item Produk */}
                       <div className="space-y-4 mb-4">
                         {order.order_items &&
@@ -228,7 +369,7 @@ const MyOrdersContent = () => {
                                   <p className="font-semibold text-sm text-dark">
                                     Rp {Number(item.price * item.quantity).toLocaleString("id-ID")}
                                   </p>
-                                  {(currentItemStageId === 1 || currentItemStageId === 3 || currentItemStageId === 6) && order.designer_id ? (
+                                 {currentItemStageId === 3 && order.designer_id ? (
                                     <button
                                       onClick={() => router.push(`/chat/${order.id}?item=${item.id}`)}
                                       className="inline-flex items-center gap-1.5 font-bold text-[10px] text-white border border-blue-500 bg-blue py-1.5 px-3 rounded-lg transition duration-150 hover:bg-blue-dark shadow-sm"
@@ -388,7 +529,7 @@ const MyOrdersContent = () => {
                   )}
                 </div>
 
-                {/* Rincian Total Bayar Atas */}
+                {/* Rincian Total Bayar & Tombol Aksi */}
                 <div className="flex flex-wrap justify-between items-center gap-3 border-t border-gray-200 pt-3">
                   <div className="text-sm">
                     <span className="text-gray-400">Total: </span>
@@ -396,9 +537,29 @@ const MyOrdersContent = () => {
                       Rp {Number(openOrderDetail.total_price).toLocaleString("id-ID")}
                     </span>
                   </div>
+
                   <div className="flex items-center gap-2">
+                    {/* Jika status Menunggu Pembayaran (Stage ID 7) */}
+                    {Number(openOrderDetail.current_stage_id) === 7 && (
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <button
+                          onClick={() => handleCancelOrder(openOrderDetail.id)}
+                          className="bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors"
+                        >
+                          Batalkan Pesanan
+                        </button>
+                        {/* 🌟 PENYESUAIAN: Tombol Bayar Sekarang memanggil Pop-up Snap Midtrans secara langsung */}
+                        <button
+                          onClick={() => handlePayNow(openOrderDetail)}
+                          className="bg-blue text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-dark transition-colors"
+                        >
+                          Bayar Sekarang
+                        </button>
+                      </div>
+                    )}
+
                     {(Number(openOrderDetail.current_stage_id) === 4 || Number(openOrderDetail.current_stage_id) === 2) && (
-                      <div className="inline-flex items-center gap-1.5 font-semibold text-xs text-orange-600 ">
+                      <div className="inline-flex items-center gap-1.5 font-semibold text-xs text-orange-600">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="6 9 6 2 18 2 18 9" />
                           <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
@@ -408,8 +569,13 @@ const MyOrdersContent = () => {
                       </div>
                     )}
                     {Number(openOrderDetail.current_stage_id) === 5 && (
-                      <div className="inline-flex items-center gap-1.5 font-semibold text-xs text-green ">
+                      <div className="inline-flex items-center gap-1.5 font-semibold text-xs text-green">
                         ✓ Pesanan Selesai
+                      </div>
+                    )}
+                    {Number(openOrderDetail.current_stage_id) === 8 && (
+                      <div className="inline-flex items-center gap-1.5 font-semibold text-xs text-red-500">
+                        ✕ Pesanan Dibatalkan
                       </div>
                     )}
                   </div>

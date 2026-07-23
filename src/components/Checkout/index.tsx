@@ -186,6 +186,7 @@ const Checkout = () => {
         shipping_cost: shippingCost.toString(),
         is_direct: isDirect,
         design_method: currentDesignMethod, 
+        current_stage_id: 7,
         shipping_latitude: selectedLat.toString(),
         shipping_longitude: selectedLng.toString(),
         items: cartItems.map((item) => {

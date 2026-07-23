@@ -6,9 +6,6 @@ import "../css/style.css";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import "@/lib/echo";
-
-
-
 import { ModalProvider } from "../context/QuickViewModalContext";
 import { CartModalProvider } from "../context/CartSidebarModalContext";
 import { ReduxProvider } from "@/redux/provider";
@@ -35,7 +32,11 @@ export default function RootLayout({
   }, []);
 
   return (
-    <html lang="en" suppressHydrationWarning={true}>
+    <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#2563eb" />
+      </head>
       <body>
         {loading ? (
           <PreLoader />
@@ -54,8 +55,8 @@ export default function RootLayout({
                   </PreviewSliderProvider>
                 </ModalProvider>
               </CartModalProvider>
-              <ChatBotWidget />
             </ReduxProvider>
+            <ChatBotWidget />
             <ScrollToTop />
             {!isChatPage && <Footer />}
            

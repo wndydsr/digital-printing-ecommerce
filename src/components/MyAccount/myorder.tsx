@@ -10,8 +10,17 @@ const MyOrdersContent = () => {
   const [activeTab, setActiveTab] = useState("Menunggu Pembayaran");
   const [openOrderDetail, setOpenOrderDetail] = useState<any>(null);
 
+  // State untuk Pagination Frontend
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Reset ke halaman 1 setiap kali tab aktif berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
 
   // 🌟 INJEKSI AUTOMATIS SCRIPT MIDTRANS SNAP
   useEffect(() => {
@@ -19,7 +28,7 @@ const MyOrdersContent = () => {
     if (!existingScript) {
       const script = document.createElement("script");
       script.id = "midtrans-snap-script";
-      script.src = "https://app.sandbox.midtrans.com/snap/snap.js"; // Ganti dengan app.midtrans.com jika Production
+      script.src = "https://app.midtrans.com/snap/snap.js"; // Ganti dengan app.midtrans.com jika Production
       script.setAttribute("data-client-key", process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "");
       script.async = true;
       document.body.appendChild(script);
@@ -239,31 +248,32 @@ const MyOrdersContent = () => {
 
     switch (activeTab) {
       case "Menunggu Pembayaran":
-        
         return stageId === 7; 
 
       case "Menunggu Verifikasi":
-
         return stageId === 6 || (stageId === 1 && !order.designer_id);
 
       case "Dalam Proses":
-      
         if ([2, 3, 4].includes(stageId)) return true;
         if ((stageId === 6 || stageId === 1) && order.designer_id) return true;
         return false;
 
       case "Pesanan Selesai":
-        // Stage 5: Selesai
         return stageId === 5;
 
       case "Dibatalkan":
-        // Stage 8: Dibatalkan / Expired
         return stageId === 8; 
 
       default:
         return false;
     }
   });
+
+  // 🛠️ LOGIC PAGINASI FRONTEND
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentFilteredOrders = filteredOrders.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 
   const currentTab = tabs.find((t) => t.name === activeTab)!;
 
@@ -306,8 +316,8 @@ const MyOrdersContent = () => {
               <p className="text-center text-sm text-gray-400 py-20">Memuat pesanan...</p>
             ) : (
               <div className="space-y-5">
-                {filteredOrders.length > 0 ? (
-                  filteredOrders.map((order) => (
+                {currentFilteredOrders.length > 0 ? (
+                  currentFilteredOrders.map((order) => (
                     <div 
                       key={order.id} 
                       onClick={() => setOpenOrderDetail(order)}
@@ -332,15 +342,15 @@ const MyOrdersContent = () => {
                         </div>
                       )}
 
-                      {/* List Item Produk */}
-                      <div className="space-y-4 mb-4">
+                      {/* List Item Produk (Dibatasi maks 2 item) */}
+                      <div className="space-y-2 mb-4">
                         {order.order_items &&
-                          order.order_items.map((item: any, idx: number) => {
+                          order.order_items.slice(0, 2).map((item: any, idx: number) => {
                             const currentItemStageId = Number(item.order_stage_id || order.current_stage_id);
                             return (
-                              <div key={idx} className="flex gap-3 items-center justify-between p-2 rounded-xl hover:bg-slate-50/50 transition-colors">
-                                <div className="flex gap-3 items-center flex-grow">
-                                  <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
+                              <div key={idx} className="flex gap-3 items-center justify-between p-2 rounded-xl bg-gray-50/60 border border-gray-100">
+                                <div className="flex gap-2.5 items-center flex-grow">
+                                  <div className="w-11 h-11 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
                                     <img
                                       src={
                                         item.product?.photo
@@ -352,31 +362,24 @@ const MyOrdersContent = () => {
                                     />
                                   </div>
                                   <div className="flex-grow">
-                                    <h4 className="font-semibold text-dark text-sm">
+                                    <h4 className="font-semibold text-dark text-xs line-clamp-1">
                                       {item.product?.name || "Produk"}
                                     </h4>
-                                    <p className="text-xs text-gray-400 mt-0.5">
-                                      Variasi: {item.panjang > 0 ? `${item.panjang}x${item.lebar}cm` : "Standar"}
+                                    <p className="text-[11px] text-gray-400">
+                                      {item.panjang > 0 ? `${item.panjang}x${item.lebar}cm` : "Standar"} • x{item.quantity}
                                     </p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <p className="text-xs font-medium text-gray-600">x{item.quantity}</p>
-                                    </div>
                                   </div>
                                 </div>
 
-                                {/* PANEL TOMBOL CHAT PER ITEM PRODUK */}
-                                <div className="flex flex-col items-end gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                  <p className="font-semibold text-sm text-dark">
+                                <div className="flex flex-col items-end gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <p className="font-bold text-xs text-dark">
                                     Rp {Number(item.price * item.quantity).toLocaleString("id-ID")}
                                   </p>
-                                 {currentItemStageId === 3 && order.designer_id ? (
+                                  {currentItemStageId === 3 && order.designer_id ? (
                                     <button
                                       onClick={() => router.push(`/chat/${order.id}?item=${item.id}`)}
-                                      className="inline-flex items-center gap-1.5 font-bold text-[10px] text-white border border-blue-500 bg-blue py-1.5 px-3 rounded-lg transition duration-150 hover:bg-blue-dark shadow-sm"
+                                      className="inline-flex items-center gap-1 font-bold text-[9px] text-white bg-blue py-1 px-2 rounded-md hover:bg-blue-dark shadow-sm"
                                     >
-                                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M21 12c0 4.418-4.03 8-9 8a9.7 9.7 0 01-3.13-.51L3 21l1.66-4.32A7.93 7.93 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                                      </svg>
                                       Chat Desain
                                     </button>
                                   ) : null}
@@ -384,6 +387,13 @@ const MyOrdersContent = () => {
                               </div>
                             );
                           })}
+
+                        {/* Indikator jika produk lebih dari 2 */}
+                        {order.order_items && order.order_items.length > 2 && (
+                          <p className="text-[11px] text-blue font-medium text-center pt-1">
+                            + {order.order_items.length - 2} produk lainnya (Klik untuk lihat detail)
+                          </p>
+                        )}
                       </div>
 
                       {/* Footer Ringkasan Kartu Utama */}
@@ -404,6 +414,29 @@ const MyOrdersContent = () => {
                     </div>
                     <h3 className="text-base font-bold text-dark">{currentTab.empty}</h3>
                     <p className="text-sm text-gray-400 mt-1">{currentTab.emptySub}</p>
+                  </div>
+                )}
+
+                {/* TOMBOL PAGINASI FRONTEND */}
+                {!loading && totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-3 mt-6 pt-4 border-t border-gray-200">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-dark disabled:opacity-40 hover:bg-gray-50 cursor-pointer"
+                    >
+                      &larr; Sebelumnya
+                    </button>
+                    <span className="text-xs text-gray-500 font-medium">
+                      Halaman {currentPage} dari {totalPages}
+                    </span>
+                    <button
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-dark disabled:opacity-40 hover:bg-gray-50 cursor-pointer"
+                    >
+                      Berikutnya &rarr;
+                    </button>
                   </div>
                 )}
               </div>
@@ -430,7 +463,7 @@ const MyOrdersContent = () => {
               </div>
               <button 
                 onClick={() => setOpenOrderDetail(null)} 
-                className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-dark font-bold text-base transition-colors"
+                className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-dark font-bold text-base transition-colors cursor-pointer"
               >
                 &times;
               </button>
@@ -458,13 +491,13 @@ const MyOrdersContent = () => {
                   </span>
                 </div>
 
-                {/* List Item Produk */}
-                <div className="space-y-3 mb-4">
+                {/* List Item Produk di Modal (Tampil Lengkap) */}
+                <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto pr-1">
                   {openOrderDetail.order_items &&
                     openOrderDetail.order_items.map((item: any, idx: number) => {
                       const currentItemStageId = Number(item.order_stage_id || openOrderDetail.current_stage_id);
                       return (
-                        <div key={idx} className="flex gap-3 items-center justify-between">
+                        <div key={idx} className="flex gap-3 items-center justify-between border-b border-gray-100 pb-2.5">
                           <div className="flex gap-3 items-center flex-grow">
                             <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
                               <img
@@ -501,7 +534,7 @@ const MyOrdersContent = () => {
                                   router.push(`/chat/${openOrderDetail.id}?item=${item.id}`);
                                   setOpenOrderDetail(null);
                                 }}
-                                className="inline-flex items-center gap-1.5 font-medium text-[11px] text-white border border-blue-500 bg-blue py-1.5 px-2.5 rounded-lg transition duration-150 hover:bg-blue-dark shadow-sm"
+                                className="inline-flex items-center gap-1.5 font-medium text-[11px] text-white border border-blue-500 bg-blue py-1.5 px-2.5 rounded-lg transition duration-150 hover:bg-blue-dark shadow-sm cursor-pointer"
                               >
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <path d="M21 12c0 4.418-4.03 8-9 8a9.7 9.7 0 01-3.13-.51L3 21l1.66-4.32A7.93 7.93 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
@@ -544,14 +577,13 @@ const MyOrdersContent = () => {
                       <div className="flex gap-2 w-full sm:w-auto">
                         <button
                           onClick={() => handleCancelOrder(openOrderDetail.id)}
-                          className="bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors"
+                          className="bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors cursor-pointer"
                         >
                           Batalkan Pesanan
                         </button>
-                        {/* 🌟 PENYESUAIAN: Tombol Bayar Sekarang memanggil Pop-up Snap Midtrans secara langsung */}
                         <button
                           onClick={() => handlePayNow(openOrderDetail)}
-                          className="bg-blue text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-dark transition-colors"
+                          className="bg-blue text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-dark transition-colors cursor-pointer"
                         >
                           Bayar Sekarang
                         </button>

@@ -1,15 +1,34 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { checkoutFileCache } from "@/components/Checkout";
 import { MessageSquare, X, Send, Bot } from "lucide-react";
+
+interface OrderSummary {
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  panjang_cm?: number;
+  lebar_cm?: number;
+  attribute_value_ids: number[];
+  attribute_names: string[];
+  harga_satuan: number;
+  subtotal: number;
+  deadline: string;
+  need_design: boolean;
+  catatan?: string;
+}
 
 interface Message {
   id: number;
   sender: "user" | "ai";
   text: string;
   time: string;
+  orderSummary?: OrderSummary;
 }
 
 const ChatBotWidget = () => {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
@@ -21,6 +40,8 @@ const ChatBotWidget = () => {
     },
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [chatDesignFile, setChatDesignFile] = useState<File | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Otomatis scroll ke bawah setiap ada pesan baru
@@ -28,7 +49,7 @@ const ChatBotWidget = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  useEffect(() => {
+    useEffect(() => {
     const handleOpenChat = () => setIsOpen(true);
     window.addEventListener("open-chatbot", handleOpenChat);
     return () => window.removeEventListener("open-chatbot", handleOpenChat);
@@ -52,6 +73,10 @@ const ChatBotWidget = () => {
 
     setMessages((prev) => [...prev, userMsg]);
     const temporaryInput = inputMessage;
+
+    // siapkan history SEBELUM pesan baru ditambahkan, untuk dikirim ke backend
+    const historyToSend = messages.map((m) => ({ role: m.sender, text: m.text }));
+
     setInputMessage(""); 
 
     // 2. Aktifkan animasi mengetik
@@ -63,7 +88,10 @@ const ChatBotWidget = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: temporaryInput }),
+        body: JSON.stringify({
+          message: temporaryInput,
+          history: historyToSend,
+        }),
       });
 
       // 💡 KUNCI FIX: Ambil data JSON dulu tanpa memedulikan status res.ok
@@ -78,6 +106,7 @@ const ChatBotWidget = () => {
             sender: "ai",
             text: data.reply,
             time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+            orderSummary: data.ready_checkout ? data.order_summary : undefined,
           },
         ]);
       } else {
@@ -105,6 +134,81 @@ const ChatBotWidget = () => {
       ]);
     } finally {
       setIsTyping(false);
+    }
+  };
+
+// 🔥 DIGANTI: ikut alur Checkout.tsx (sessionStorage + redirect ke /payment)
+  const handleCheckout = (summary: OrderSummary) => {
+    if (!summary.need_design && !chatDesignFile) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          sender: "ai",
+          text: "Sebelum checkout, upload dulu file desain kamu ya lewat tombol 📎 di bawah ringkasan pesanan.",
+          time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+      return;
+    }
+
+    setIsCheckingOut(true);
+    try {
+      const customerStr = localStorage.getItem("customer");
+      const customerData = customerStr ? JSON.parse(customerStr) : null;
+
+      if (!customerData?.id) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            sender: "ai",
+            text: "Kamu perlu login dulu sebelum checkout ya.",
+            time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+        return;
+      }
+
+      const totalPayment = summary.subtotal;
+
+      if (chatDesignFile) {
+        checkoutFileCache.readyDesignFile = chatDesignFile;
+      }
+
+      const checkoutPayload = {
+        customer_id: customerData.id,
+        total_price: summary.subtotal.toString(),
+        shipping_method: "pickup",
+        shipping_cost: "0",
+        is_direct: true,
+        design_method: summary.need_design ? "need-design" : "ready-to-print",
+        shipping_latitude: "",
+        shipping_longitude: "",
+        items: [
+          {
+            id: summary.product_id,
+            product_id: summary.product_id,
+            quantity: summary.quantity,
+            panjang: summary.panjang_cm || 0,
+            lebar: summary.lebar_cm || 0,
+            need_design: summary.need_design ? "1" : "0",
+            dummy_file_name: null,
+            catatan: [summary.catatan, summary.deadline ? `Deadline: ${summary.deadline}` : null]
+              .filter(Boolean)
+              .join(" | "),
+            selectedOptions: {},
+            attributes: summary.attribute_value_ids.map(String),
+          },
+        ],
+      };
+
+      sessionStorage.setItem("pendingCheckoutData", JSON.stringify(checkoutPayload));
+      router.push(`/payment?amount=${totalPayment}`);
+    } catch (error) {
+      console.error("Gagal menyiapkan checkout dari chat:", error);
+    } finally {
+      setIsCheckingOut(false);
     }
   };
   
@@ -156,6 +260,47 @@ const ChatBotWidget = () => {
                 >
                   {msg.text}
                 </div>
+
+                {/* 🔥 CARD RINGKASAN PESANAN + TOMBOL CHECKOUT */}
+                {msg.orderSummary && (
+                  <div className="mt-2 w-[85%] border border-blue rounded-xl p-3 bg-blue-50 text-[11px] leading-relaxed">
+                    <p className="font-bold mb-1 text-dark">Ringkasan Pesanan</p>
+                    <p>Produk: {msg.orderSummary.product_name}</p>
+                    {!!msg.orderSummary.panjang_cm && !!msg.orderSummary.lebar_cm && (
+                      <p>Ukuran: {msg.orderSummary.panjang_cm} x {msg.orderSummary.lebar_cm} cm</p>
+                    )}
+                    <p>Jumlah: {msg.orderSummary.quantity}</p>
+                    {msg.orderSummary.attribute_names.length > 0 && (
+                      <p>Bahan: {msg.orderSummary.attribute_names.join(", ")}</p>
+                    )}
+                    <p>Deadline: {msg.orderSummary.deadline}</p>
+                    <p>Desain: {msg.orderSummary.need_design ? "Butuh dibuatkan" : "Sudah punya sendiri"}</p>
+                    <p className="font-bold mt-1 text-dark">
+                      Total: Rp {msg.orderSummary.subtotal.toLocaleString("id-ID")}
+                    </p>
+
+                                        {!msg.orderSummary.need_design && (
+                      <label className="flex items-center gap-1 mt-2 text-[11px] text-blue cursor-pointer">
+                        📎 {chatDesignFile ? `File terpilih: ${chatDesignFile.name}` : "Upload file desain kamu"}
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          className="hidden"
+                          onChange={(e) => setChatDesignFile(e.target.files?.[0] || null)}
+                        />
+                      </label>
+                    )}
+
+                    <button
+                      onClick={() => handleCheckout(msg.orderSummary!)}
+                      disabled={isCheckingOut}
+                      className="mt-2 w-full bg-blue text-white py-1.5 rounded-lg font-semibold hover:bg-blue-dark disabled:opacity-50 transition-all"
+                    >
+                      {isCheckingOut ? "Memproses..." : "Checkout Sekarang"}
+                    </button>
+                  </div>
+                )}
+
                 <span className="text-[9px] text-gray-400 mt-1 px-1">{msg.time}</span>
               </div>
             );

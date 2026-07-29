@@ -28,6 +28,12 @@ const ChatBotWidget = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
+  useEffect(() => {
+    const handleOpenChat = () => setIsOpen(true);
+    window.addEventListener("open-chatbot", handleOpenChat);
+    return () => window.removeEventListener("open-chatbot", handleOpenChat);
+  }, []);
+
   // 🔥 FUNGSI BARU: MENEMBAK API LARAVEL SECARA REAL-TIME
  // 🔥 FUNGSI YANG SUDAH DIPERBAIKI UNTUK MEMBACA EMAS ERROR DARI LARAVEL
   const handleSendMessage = async (e: React.FormEvent) => {

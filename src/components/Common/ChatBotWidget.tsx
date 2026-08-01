@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { checkoutFileCache } from "@/components/Checkout";
-import { MessageSquare, X, Send, Bot } from "lucide-react";
+import { MessageSquare, X, Send, Bot, Paperclip } from "lucide-react";
 
 interface OrderSummary {
   product_id: number;
@@ -35,7 +35,7 @@ const ChatBotWidget = () => {
     {
       id: 1,
       sender: "ai",
-      text: "Halo! Saya Nora, asisten virtual cetak digitalmu. Ada yang bisa saya bantu hari ini?",
+      text: "Halo! Saya Nora, asisten cetak digitalmu. Mau cetak banner, stiker, atau produk lainnya hari ini?",
       time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -44,26 +44,22 @@ const ChatBotWidget = () => {
   const [chatDesignFile, setChatDesignFile] = useState<File | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Otomatis scroll ke bawah setiap ada pesan baru
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-    useEffect(() => {
+  useEffect(() => {
     const handleOpenChat = () => setIsOpen(true);
     window.addEventListener("open-chatbot", handleOpenChat);
     return () => window.removeEventListener("open-chatbot", handleOpenChat);
   }, []);
 
-  // 🔥 FUNGSI BARU: MENEMBAK API LARAVEL SECARA REAL-TIME
- // 🔥 FUNGSI YANG SUDAH DIPERBAIKI UNTUK MEMBACA EMAS ERROR DARI LARAVEL
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
 
     const currentTime = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 
-    // 1. Tampilkan pesan user di chat box
     const userMsg: Message = {
       id: Date.now(),
       sender: "user",
@@ -71,19 +67,21 @@ const ChatBotWidget = () => {
       time: currentTime,
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+
+    // Format history yang bersih untuk backend
+    const historyToSend = messages.map((m) => ({
+      role: m.sender === "ai" ? "ai" : "user",
+      text: m.text,
+    }));
+
     const temporaryInput = inputMessage;
-
-    // siapkan history SEBELUM pesan baru ditambahkan, untuk dikirim ke backend
-    const historyToSend = messages.map((m) => ({ role: m.sender, text: m.text }));
-
-    setInputMessage(""); 
-
-    // 2. Aktifkan animasi mengetik
+    setInputMessage("");
     setIsTyping(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/chatbot`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/api/chatbot`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -94,33 +92,18 @@ const ChatBotWidget = () => {
         }),
       });
 
-      // 💡 KUNCI FIX: Ambil data JSON dulu tanpa memedulikan status res.ok
       const data = await res.json();
 
-      if (res.ok) {
-        // Jika status 200 (Sukses)
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            sender: "ai",
-            text: data.reply,
-            time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-            orderSummary: data.ready_checkout ? data.order_summary : undefined,
-          },
-        ]);
-      } else {
-        // 🔥 JIKA LARAVEL EROR 500, PAKSA TAMPILKAN PESAN DEBUG NYA DI BUBBLE CHAT
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            sender: "ai",
-            text: data.reply || "Laravel merespon dengan error 500 tanpa pesan khusus.",
-            time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-          },
-        ]);
-      }
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          sender: "ai",
+          text: data.reply || "Maaf, terjadi gangguan pada koneksi.",
+          time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          orderSummary: data.ready_checkout ? data.order_summary : undefined,
+        },
+      ]);
     } catch (error) {
       console.error("Gagal koneksi chatbot:", error);
       setMessages((prev) => [
@@ -128,7 +111,7 @@ const ChatBotWidget = () => {
         {
           id: Date.now() + 1,
           sender: "ai",
-          text: "Gagal terhubung ke backend Laravel. Pastikan 'php artisan serve' menyala.",
+          text: "Gagal terhubung ke server Backend.",
           time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -137,15 +120,15 @@ const ChatBotWidget = () => {
     }
   };
 
-// 🔥 DIGANTI: ikut alur Checkout.tsx (sessionStorage + redirect ke /payment)
   const handleCheckout = (summary: OrderSummary) => {
+    // Validasi jika tidak butuh jasa desain, WAJIB upload file sendiri
     if (!summary.need_design && !chatDesignFile) {
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
           sender: "ai",
-          text: "Sebelum checkout, upload dulu file desain kamu ya lewat tombol 📎 di bawah ringkasan pesanan.",
+          text: "Sebelum ke pembayaran, mohon unggah dulu file desain kamu lewat tombol 📎 di bawah ringkasan ya!",
           time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -163,14 +146,12 @@ const ChatBotWidget = () => {
           {
             id: Date.now() + 1,
             sender: "ai",
-            text: "Kamu perlu login dulu sebelum checkout ya.",
+            text: "Silakan login terlebih dahulu untuk melanjutkan ke pembayaran.",
             time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
           },
         ]);
         return;
       }
-
-      const totalPayment = summary.subtotal;
 
       if (chatDesignFile) {
         checkoutFileCache.readyDesignFile = chatDesignFile;
@@ -193,7 +174,6 @@ const ChatBotWidget = () => {
             panjang: summary.panjang_cm || 0,
             lebar: summary.lebar_cm || 0,
             need_design: summary.need_design ? "1" : "0",
-            dummy_file_name: null,
             catatan: [summary.catatan, summary.deadline ? `Deadline: ${summary.deadline}` : null]
               .filter(Boolean)
               .join(" | "),
@@ -204,17 +184,16 @@ const ChatBotWidget = () => {
       };
 
       sessionStorage.setItem("pendingCheckoutData", JSON.stringify(checkoutPayload));
-      router.push(`/payment?amount=${totalPayment}`);
+      router.push(`/payment?amount=${summary.subtotal}`);
     } catch (error) {
-      console.error("Gagal menyiapkan checkout dari chat:", error);
+      console.error("Gagal menyiapkan checkout:", error);
     } finally {
       setIsCheckingOut(false);
     }
   };
-  
+
   return (
     <div className="fixed bottom-6 right-6 z-99999 font-sans">
-      {/* TOMBOL MELAYANG */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -225,7 +204,6 @@ const ChatBotWidget = () => {
         {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
       </button>
 
-      {/* JENDELA KOTAK CHAT */}
       <div
         className={`absolute bottom-18 right-0 w-[360px] h-[480px] bg-white rounded-2xl shadow-2xl border border-gray-2 flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right ${
           isOpen ? "scale-100 opacity-100" : "scale-0 opacity-0 pointer-events-none"
@@ -245,7 +223,7 @@ const ChatBotWidget = () => {
           </div>
         </div>
 
-        {/* List Bubble Chat */}
+        {/* Message List */}
         <div className="flex-1 p-4 overflow-y-auto bg-gray-50 space-y-3 no-scrollbar">
           {messages.map((msg) => {
             const isAI = msg.sender === "ai";
@@ -261,27 +239,28 @@ const ChatBotWidget = () => {
                   {msg.text}
                 </div>
 
-                {/* 🔥 CARD RINGKASAN PESANAN + TOMBOL CHECKOUT */}
+                {/* Card Ringkasan & Tombol Checkout */}
                 {msg.orderSummary && (
-                  <div className="mt-2 w-[85%] border border-blue rounded-xl p-3 bg-blue-50 text-[11px] leading-relaxed">
-                    <p className="font-bold mb-1 text-dark">Ringkasan Pesanan</p>
-                    <p>Produk: {msg.orderSummary.product_name}</p>
+                  <div className="mt-2 w-[85%] border border-blue/30 rounded-xl p-3 bg-blue-50 text-[11px] leading-relaxed shadow-sm">
+                    <p className="font-bold mb-1 text-dark">📋 Ringkasan Pesanan</p>
+                    <p><strong>Produk:</strong> {msg.orderSummary.product_name}</p>
                     {!!msg.orderSummary.panjang_cm && !!msg.orderSummary.lebar_cm && (
-                      <p>Ukuran: {msg.orderSummary.panjang_cm} x {msg.orderSummary.lebar_cm} cm</p>
+                      <p><strong>Ukuran:</strong> {msg.orderSummary.panjang_cm} x {msg.orderSummary.lebar_cm} cm</p>
                     )}
-                    <p>Jumlah: {msg.orderSummary.quantity}</p>
+                    <p><strong>Jumlah:</strong> {msg.orderSummary.quantity} pcs</p>
                     {msg.orderSummary.attribute_names.length > 0 && (
-                      <p>Bahan: {msg.orderSummary.attribute_names.join(", ")}</p>
+                      <p><strong>Bahan:</strong> {msg.orderSummary.attribute_names.join(", ")}</p>
                     )}
-                    <p>Deadline: {msg.orderSummary.deadline}</p>
-                    <p>Desain: {msg.orderSummary.need_design ? "Butuh dibuatkan" : "Sudah punya sendiri"}</p>
-                    <p className="font-bold mt-1 text-dark">
+                    <p><strong>Deadline:</strong> {msg.orderSummary.deadline}</p>
+                    <p><strong>Desain:</strong> {msg.orderSummary.need_design ? "Butuh dibuatkan" : "Siap Cetak (Ada File)"}</p>
+                    <p className="font-bold mt-1.5 text-blue text-xs">
                       Total: Rp {msg.orderSummary.subtotal.toLocaleString("id-ID")}
                     </p>
 
-                                        {!msg.orderSummary.need_design && (
-                      <label className="flex items-center gap-1 mt-2 text-[11px] text-blue cursor-pointer">
-                        📎 {chatDesignFile ? `File terpilih: ${chatDesignFile.name}` : "Upload file desain kamu"}
+                    {!msg.orderSummary.need_design && (
+                      <label className="flex items-center gap-1.5 mt-2.5 text-[11px] text-blue font-medium cursor-pointer hover:underline">
+                        <Paperclip size={13} />
+                        {chatDesignFile ? `File: ${chatDesignFile.name}` : "Upload File Desain"}
                         <input
                           type="file"
                           accept="image/*,application/pdf"
@@ -294,9 +273,9 @@ const ChatBotWidget = () => {
                     <button
                       onClick={() => handleCheckout(msg.orderSummary!)}
                       disabled={isCheckingOut}
-                      className="mt-2 w-full bg-blue text-white py-1.5 rounded-lg font-semibold hover:bg-blue-dark disabled:opacity-50 transition-all"
+                      className="mt-3 w-full bg-blue text-white py-2 rounded-lg font-semibold hover:bg-blue-dark disabled:opacity-50 transition-all shadow-sm"
                     >
-                      {isCheckingOut ? "Memproses..." : "Checkout Sekarang"}
+                      {isCheckingOut ? "Memproses..." : "Checkout & Bayar Sekarang"}
                     </button>
                   </div>
                 )}
@@ -306,7 +285,6 @@ const ChatBotWidget = () => {
             );
           })}
 
-          {/* Indikator Mengetik */}
           {isTyping && (
             <div className="flex flex-col items-start">
               <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-1">
@@ -319,7 +297,7 @@ const ChatBotWidget = () => {
           <div ref={chatEndRef} />
         </div>
 
-        {/* Form Input Kirim Pesan */}
+        {/* Input Text Form */}
         <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-gray-2 flex gap-2 items-center">
           <input
             type="text"

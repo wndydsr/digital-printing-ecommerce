@@ -100,9 +100,10 @@ const PaymentContent = () => {
             if (pendingCheckoutData.design_method === "ready-to-print" && checkoutFileCache.readyDesignFile) {
               formData.append(`items[${index}][design_file]`, checkoutFileCache.readyDesignFile);
             } 
-            else if (pendingCheckoutData.design_method === "need-design" && directDirectFileCache.supportFiles?.length > 0) {
-              const singleReferenceFile = directDirectFileCache.supportFiles[0];
-              formData.append(`items[${index}][reference_files]`, singleReferenceFile);
+           else if (pendingCheckoutData.design_method === "need-design" && directDirectFileCache.supportFiles?.length > 0) {
+              directDirectFileCache.supportFiles.forEach((file: File) => {
+                formData.append(`items[${index}][reference_files][]`, file);
+              });
             }
           }
         });

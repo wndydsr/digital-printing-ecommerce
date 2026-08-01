@@ -44,6 +44,7 @@ const ChatBotWidget = () => {
   const [chatDesignFile, setChatDesignFile] = useState<File | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Otomatis scroll ke bawah
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
@@ -60,6 +61,7 @@ const ChatBotWidget = () => {
 
     const currentTime = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 
+    // 1. Tambahkan pesan User
     const userMsg: Message = {
       id: Date.now(),
       sender: "user",
@@ -67,21 +69,19 @@ const ChatBotWidget = () => {
       time: currentTime,
     };
 
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-
-    // Format history yang bersih untuk backend
+    // Rakit history dengan format yang bersih (role: 'user' | 'ai')
     const historyToSend = messages.map((m) => ({
-      role: m.sender === "ai" ? "ai" : "user",
+      role: m.sender,
       text: m.text,
     }));
 
+    setMessages((prev) => [...prev, userMsg]);
     const temporaryInput = inputMessage;
     setInputMessage("");
     setIsTyping(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/api/chatbot`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/chatbot`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -94,16 +94,28 @@ const ChatBotWidget = () => {
 
       const data = await res.json();
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: "ai",
-          text: data.reply || "Maaf, terjadi gangguan pada koneksi.",
-          time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-          orderSummary: data.ready_checkout ? data.order_summary : undefined,
-        },
-      ]);
+      if (res.ok) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            sender: "ai",
+            text: data.reply,
+            time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+            orderSummary: data.ready_checkout ? data.order_summary : undefined,
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            sender: "ai",
+            text: data.reply || "Terjadi kesalahan pada server backend.",
+            time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+      }
     } catch (error) {
       console.error("Gagal koneksi chatbot:", error);
       setMessages((prev) => [
@@ -111,7 +123,7 @@ const ChatBotWidget = () => {
         {
           id: Date.now() + 1,
           sender: "ai",
-          text: "Gagal terhubung ke server Backend.",
+          text: "Gagal terhubung ke backend Laravel. Pastikan 'php artisan serve' menyala.",
           time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -121,79 +133,87 @@ const ChatBotWidget = () => {
   };
 
   const handleCheckout = (summary: OrderSummary) => {
-    // Validasi jika tidak butuh jasa desain, WAJIB upload file sendiri
-    if (!summary.need_design && !chatDesignFile) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: "ai",
-          text: "Sebelum ke pembayaran, mohon unggah dulu file desain kamu lewat tombol 📎 di bawah ringkasan ya!",
-          time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
-      return;
-    }
-
-    setIsCheckingOut(true);
-    try {
-      const customerStr = localStorage.getItem("customer");
-      const customerData = customerStr ? JSON.parse(customerStr) : null;
-
-      if (!customerData?.id) {
+      // Validasi: Jika pilih bawa file sendiri, wajib upload file desain di chat dulu
+      if (!summary.need_design && !chatDesignFile) {
         setMessages((prev) => [
           ...prev,
           {
             id: Date.now() + 1,
             sender: "ai",
-            text: "Silakan login terlebih dahulu untuk melanjutkan ke pembayaran.",
+            text: "Sebelum lanjut ke checkout, upload dulu file desain kamu ya lewat tombol 📎 di bawah ringkasan pesanan.",
             time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
           },
         ]);
         return;
       }
 
-      if (chatDesignFile) {
-        checkoutFileCache.readyDesignFile = chatDesignFile;
+      setIsCheckingOut(true);
+      try {
+        const customerStr = localStorage.getItem("customer");
+        const customerData = customerStr ? JSON.parse(customerStr) : null;
+
+        if (!customerData?.id) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now() + 1,
+              sender: "ai",
+              text: "Kamu perlu login dulu sebelum masuk ke halaman checkout ya.",
+              time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+            },
+          ]);
+          return;
+        }
+
+        // Simpan file desain jika ada ke cache
+        if (chatDesignFile) {
+          checkoutFileCache.readyDesignFile = chatDesignFile;
+        }
+
+        // Format payload pesanan untuk dibaca oleh Halaman Checkout
+        const checkoutPayload = {
+          customer_id: customerData.id,
+          total_price: summary.subtotal.toString(),
+          shipping_method: "pickup",
+          shipping_cost: "0",
+          is_direct: true,
+          design_method: summary.need_design ? "need-design" : "ready-to-print",
+          shipping_latitude: "",
+          shipping_longitude: "",
+          items: [
+            {
+              id: summary.product_id,
+              product_id: summary.product_id,
+              quantity: summary.quantity,
+              panjang: summary.panjang_cm || 0,
+              lebar: summary.lebar_cm || 0,
+              need_design: summary.need_design ? "1" : "0",
+              dummy_file_name: null,
+              catatan: [summary.catatan, summary.deadline ? `Deadline: ${summary.deadline}` : null]
+                .filter(Boolean)
+                .join(" | "),
+              selectedOptions: {},
+              attributes: summary.attribute_value_ids.map(String),
+            },
+          ],
+        };
+
+        // 1. Simpan data ke Session Storage agar dibaca oleh halaman /checkout
+        sessionStorage.setItem("pendingCheckoutData", JSON.stringify(checkoutPayload));
+        
+        // 2. 🔥 DIUBAH: Redirect ke halaman /checkout DULU (bukan langsung /payment)
+        router.push("/checkout");
+
+      } catch (error) {
+        console.error("Gagal menyiapkan checkout dari chat:", error);
+      } finally {
+        setIsCheckingOut(false);
       }
-
-      const checkoutPayload = {
-        customer_id: customerData.id,
-        total_price: summary.subtotal.toString(),
-        shipping_method: "pickup",
-        shipping_cost: "0",
-        is_direct: true,
-        design_method: summary.need_design ? "need-design" : "ready-to-print",
-        shipping_latitude: "",
-        shipping_longitude: "",
-        items: [
-          {
-            id: summary.product_id,
-            product_id: summary.product_id,
-            quantity: summary.quantity,
-            panjang: summary.panjang_cm || 0,
-            lebar: summary.lebar_cm || 0,
-            need_design: summary.need_design ? "1" : "0",
-            catatan: [summary.catatan, summary.deadline ? `Deadline: ${summary.deadline}` : null]
-              .filter(Boolean)
-              .join(" | "),
-            selectedOptions: {},
-            attributes: summary.attribute_value_ids.map(String),
-          },
-        ],
-      };
-
-      sessionStorage.setItem("pendingCheckoutData", JSON.stringify(checkoutPayload));
-      router.push(`/payment?amount=${summary.subtotal}`);
-    } catch (error) {
-      console.error("Gagal menyiapkan checkout:", error);
-    } finally {
-      setIsCheckingOut(false);
-    }
-  };
+    };
 
   return (
     <div className="fixed bottom-6 right-6 z-99999 font-sans">
+      {/* TOMBOL MELAYANG */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -204,6 +224,7 @@ const ChatBotWidget = () => {
         {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
       </button>
 
+      {/* JENDELA CHAT */}
       <div
         className={`absolute bottom-18 right-0 w-[360px] h-[480px] bg-white rounded-2xl shadow-2xl border border-gray-2 flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right ${
           isOpen ? "scale-100 opacity-100" : "scale-0 opacity-0 pointer-events-none"
@@ -223,7 +244,7 @@ const ChatBotWidget = () => {
           </div>
         </div>
 
-        {/* Message List */}
+        {/* Bubble Chat List */}
         <div className="flex-1 p-4 overflow-y-auto bg-gray-50 space-y-3 no-scrollbar">
           {messages.map((msg) => {
             const isAI = msg.sender === "ai";
@@ -239,7 +260,7 @@ const ChatBotWidget = () => {
                   {msg.text}
                 </div>
 
-                {/* Card Ringkasan & Tombol Checkout */}
+                {/* CARD RINGKASAN PESANAN */}
                 {msg.orderSummary && (
                   <div className="mt-2 w-[85%] border border-blue/30 rounded-xl p-3 bg-blue-50 text-[11px] leading-relaxed shadow-sm">
                     <p className="font-bold mb-1 text-dark">📋 Ringkasan Pesanan</p>
@@ -275,7 +296,7 @@ const ChatBotWidget = () => {
                       disabled={isCheckingOut}
                       className="mt-3 w-full bg-blue text-white py-2 rounded-lg font-semibold hover:bg-blue-dark disabled:opacity-50 transition-all shadow-sm"
                     >
-                      {isCheckingOut ? "Memproses..." : "Checkout & Bayar Sekarang"}
+                      {isCheckingOut ? "Memproses..." : "Lanjut ke Halaman Checkout 🛒"}
                     </button>
                   </div>
                 )}

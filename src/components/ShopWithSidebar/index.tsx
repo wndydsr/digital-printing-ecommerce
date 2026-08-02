@@ -21,12 +21,20 @@ const ShopWithSidebar = () => {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
 
+  // 🔥 1. AMBIL KATA KUNCI PENCARIAN DARI URL (PARAMETER 'q')
+  const searchQuery = searchParams.get("q") || "";
+
   useEffect(() => {
     if (categoryParam) {
       setSelectedCategory(categoryParam);
       setCurrentPage(1); // Reset ke halaman 1 jika kategori berubah
     }
   }, [categoryParam]);
+
+  // Reset ke halaman 1 jika kata kunci search berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const handleStickyMenu = () => {
     if (window.scrollY >= 80) {
@@ -73,8 +81,17 @@ const ShopWithSidebar = () => {
   // 🧠 LOGIKA FILTER & PAGINATION
   // ==========================================
   const filteredProducts = products.filter((item: any) => {
-    if (selectedCategory === "all") return true; 
-    return String(item.category_id) === selectedCategory; 
+    // 1. Cek Kategori (Logika aslimu)
+    const matchCategory = selectedCategory === "all" || String(item.category_id) === selectedCategory;
+
+    // 🔥 2. Cek Pencarian (Tambahan agar search berfungsi)
+    const query = searchQuery.toLowerCase().trim();
+    const matchSearch =
+      !query ||
+      item.name?.toLowerCase().includes(query) ||
+      item.description?.toLowerCase().includes(query);
+
+    return matchCategory && matchSearch;
   });
 
   // Hitung indeks data untuk halaman aktif

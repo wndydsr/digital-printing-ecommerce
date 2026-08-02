@@ -3,6 +3,7 @@ import React from "react";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "@/redux/store";
 import Image from "next/image";
+import { toast } from "sonner";
 
 const SingleItem = ({ item, removeItemFromCart }) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -17,13 +18,13 @@ const SingleItem = ({ item, removeItemFromCart }) => {
         }
       });
       dispatch(removeItemFromCart(item.id));
+      toast.success("Produk berhasil dihapus dari keranjang.");
     } catch (error) {
       console.error("Gagal menghapus item dari database:", error);
-      alert("Gagal menghapus produk. Coba lagi.");
+      toast.error("Gagal menghapus produk. Coba lagi.");
     }
   };
 
-  // 🔥 Harga sudah final dari Redux (QuickViewModal / CartInitializer sudah menghitung luas m2)
   const finalPricePerUnit = Number(item.price || 0);
 
   return (
@@ -50,7 +51,6 @@ const SingleItem = ({ item, removeItemFromCart }) => {
           </span>
         </p>
           
-          {/* Opsional: Menampilkan ukuran jika ada */}
           {Number(item.panjang) > 0 && Number(item.lebar) > 0 && (
             <p className="text-[10px] text-gray-400 mt-0.5">
               Ukuran: {item.panjang} x {item.lebar} cm

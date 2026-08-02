@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Breadcrumb from "../Common/Breadcrumb";
 import { initEcho } from "@/lib/echo";
+import { toast } from "sonner";
 
 interface ChatMessage {
   id: number;
@@ -138,7 +139,6 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
     };
   }, [orderId, orderItemId, API_URL]);
 
-  // 🌟 JALUR CLEAR: Hanya ada 1 loadData utama yang sudah diproteksi Array.isArray
   useEffect(() => {
     const loadData = async () => {
       if (!orderId) return;
@@ -275,9 +275,9 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
 
       setApprovedId(msgId);
       setOrderInfo(prev => prev ? { ...prev, status: "siap_cetak" } : null);
-      alert("Desain berhasil disetujui!");
+      toast.success("Desain berhasil disetujui!");
     } catch (err: any) {
-      alert(err.message || "Terjadi kesalahan.");
+      toast.error(err.message || "Terjadi kesalahan.");
     }
   };
 
@@ -303,6 +303,7 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
       setRevisiNote("");
       setSelectedMsgId(null);
       setOrderInfo(prev => prev ? { ...prev, status: "revisi" } : null);
+      toast.success("Permintaan revisi berhasil dikirim!");
 
       const messagesUrl = orderItemId
         ? `${API_URL}/api/orders/${orderId}/messages?item_id=${orderItemId}`
@@ -316,7 +317,7 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
         setMessages(data.reverse());
       }
     } catch (err) {
-      alert("Gagal mengirim data revisi.");
+      toast.error("Gagal mengirim data revisi.");
     }
   };
 
@@ -342,7 +343,6 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
     <div className="flex flex-col h-screen bg-white overflow-hidden">
       <Breadcrumb title="Chat Desainer" pages={["chat"]} />
 
-      {/* 📱 MOBILE HEADER BAR */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-gray-3 bg-gray-50 shrink-0">
         <div className="flex flex-col min-w-0">
           <span className="text-xs font-bold text-dark-3">{orderInfo.order_code}</span>
@@ -357,7 +357,6 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
       </div>
 
       <div className="flex flex-1 overflow-hidden relative">
-        {/* AREA BUBBLE CHAT */}
         <div className="flex flex-col flex-1 bg-white overflow-y-auto px-4 sm:px-8 py-6">
           {Object.keys(groupedMessages).length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
@@ -448,7 +447,6 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
           <div ref={chatEndRef} />
         </div>
 
-        {/* SIDEBAR INFO */}
         <div className={`
           fixed inset-y-0 right-0 z-40 w-[290px] sm:w-[340px] bg-white border-l border-gray-3 transform transition-transform duration-300 ease-in-out px-5 py-6 overflow-y-auto no-scrollbar
           lg:relative lg:transform-none lg:z-0 lg:block shrink-0
@@ -512,7 +510,6 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
         )}
       </div>
 
-      {/* FIELD INPUT PESAN */}
       <div className="px-4 sm:px-8 py-3.5 border-t border-gray-3 bg-white shrink-0">
         {orderInfo.status === "siap_cetak" || orderInfo.status === "selesai" ? (
           <div className="w-full text-center bg-gray-50 text-dark-4 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold border border-dashed border-gray-3 select-none">
@@ -541,7 +538,6 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
         )}
       </div>
 
-      {/* MODAL REVISI */}
       {showRevisi && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm sm:max-w-md bg-white rounded-3xl p-5 sm:p-6 shadow-xl animate-fade-in">
@@ -578,7 +574,6 @@ const ChatCustomerContent = ({ orderId, orderItemId }: { orderId: string; orderI
         </div>
       )}
 
-      {/* MODAL IMAGE PREVIEW */}
       {previewImage && (
         <div className="fixed inset-0 z-[9999] flex flex-col bg-[#525659] text-white select-none">
           <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-[#323639] border-b border-[#202224] h-12 shrink-0">

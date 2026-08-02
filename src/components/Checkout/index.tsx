@@ -141,13 +141,47 @@ const Checkout = () => {
     return basePrice > 0 ? basePrice : Number(item.price || 0);
   };
 
-  useEffect(() => {
+useEffect(() => {
     const customerStr = localStorage.getItem("customer");
     if (customerStr) setCustomerData(JSON.parse(customerStr));
 
     const params = new URLSearchParams(window.location.search);
     const type = params.get("type");
 
+    // 🌟 1. CEK DULU ADA DATA PENDING DARI CHATBOT ATAU TIDAK
+    const pendingChatbotData = sessionStorage.getItem("pendingCheckoutData");
+
+    if (pendingChatbotData) {
+      try {
+        const parsedPayload = JSON.parse(pendingChatbotData);
+        if (parsedPayload.items && parsedPayload.items.length > 0) {
+          setIsDirect(true);
+
+          // 🔧 PERBAIKAN: Petakan title & img agar UI merender Foto & Nama Produk dengan sempurna
+          const formattedItems = parsedPayload.items.map((item: any) => ({
+            ...item,
+            title: item.title || item.product_name || item.name || "Produk Cetak",
+            img: item.img || item.product_photo || (item.product?.photo ? `/storage/${item.product.photo}` : "/placeholder.png"),
+            price: Number(item.price || item.subtotal / (item.quantity || 1) || 0)
+          }));
+
+          setCartItems(formattedItems);
+          
+          // Hitung total dari subtotal items
+          const calculatedTotal = formattedItems.reduce((sum: number, item: any) => {
+            const itemPrice = Number(item.subtotal || item.price || 0);
+            return sum + itemPrice;
+          }, 0);
+
+          setTotalPrice(calculatedTotal || Number(parsedPayload.total_price || 0));
+          return; // Hentikan di sini jika data chatbot ditemukan!
+        }
+      } catch (err) {
+        console.error("Gagal parse data chatbot checkout:", err);
+      }
+    }
+
+    // 2. CEK JIKA DIRECT CHECKOUT BIASA (Beli Langsung dari Modal)
     if (type === "direct") {
       setIsDirect(true);
       const directItem = sessionStorage.getItem("directCheckoutItem");
@@ -162,6 +196,7 @@ const Checkout = () => {
         }
       }
     } else {
+      // 3. JIKA CHECKOUT KERANJANG REDUX BIASA
       setIsDirect(false);
       setCartItems(allCartItems);
       const totalRedux = allCartItems.reduce((sum: number, item: any) => {

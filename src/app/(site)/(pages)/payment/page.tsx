@@ -127,27 +127,36 @@ const PaymentContent = () => {
         throw new Error(data.error || data.message || "Gagal mendapatkan token pembayaran dari server.");
       }
 
-      (window as any).snap.pay(data.token, {
-        onSuccess: function (result: any) {
-          alert("Pembayaran Berhasil!");
-          sessionStorage.removeItem("pendingCheckoutData");
-          sessionStorage.removeItem("directCheckoutItem");
-          router.push(`/invoice/${data.order_id}`);
-        },
-        onPending: function (result: any) {
-          alert("Menunggu Pembayaran Selesai.");
-          sessionStorage.removeItem("pendingCheckoutData");
-          sessionStorage.removeItem("directCheckoutItem");
-          router.push(`/invoice/${data.order_id}`);
-        },
-        onError: function (result: any) {
-          alert("Pembayaran Gagal! Silakan coba lagi.");
-          setIsProcessing(false);
-        },
-        onClose: function () {
-          setIsProcessing(false);
-        },
-      });
+    (window as any).snap.pay(data.token, {
+      onSuccess: function (result: any) {
+        alert("Pembayaran Berhasil!");
+        sessionStorage.removeItem("pendingCheckoutData");
+        sessionStorage.removeItem("directCheckoutItem");
+        
+        // REDIRECT KE INVOICE HANYA JIKA PEMBAYARAN BENAR-BENAR BERHASIL
+        router.push(`/invoice/${data.order_id}`);
+      },
+
+      onPending: function (result: any) {
+        // Barcode QRIS / VA sudah dibuat tapi BELUM DIBAYAR
+        alert("Kode QRIS / Instruksi Pembayaran telah dibuat. Silakan selesaikan pembayaran Anda.");
+        sessionStorage.removeItem("pendingCheckoutData");
+        sessionStorage.removeItem("directCheckoutItem");
+        
+        // Redirect ke halaman daftar pesanan / akun (bukan invoice lunas)
+        router.push("/my-account?tab=orders");
+      },
+
+      onError: function (result: any) {
+        alert("Pembayaran Gagal! Silakan coba lagi.");
+        setIsProcessing(false);
+      },
+
+      onClose: function () {
+        // Dipanggil jika user menutup modal Snap tanpa menyelesaikan tindakan
+        setIsProcessing(false);
+      },
+    });
     } catch (error: any) {
       alert(error.message || "Terjadi kesalahan koneksi ke server Laravel.");
       setIsProcessing(false);

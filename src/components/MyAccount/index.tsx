@@ -5,6 +5,7 @@ import Image from "next/image";
 import AddressModal from "./AddressModal";
 import Orders from "./myorder";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 const MyAccount = () => {
   const searchParams = useSearchParams();
@@ -22,7 +23,6 @@ const MyAccount = () => {
   const openAddressModal = () => setAddressModal(true);
   const closeAddressModal = () => setAddressModal(false);
 
-  // 🔥 FUNGSI PEMBANTU UNTUK FORMAT "MEMBER SINCE"
   const formatMemberSince = (dateString: string) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
@@ -34,16 +34,20 @@ const MyAccount = () => {
 
   useEffect(() => {
     const fetchCustomer = async () => {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/me`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-      });
-      const data = await res.json();
-      setCustomer(data);
-      setName(data.name || "");
-      setEmail(data.email || "");
-      setPhone(data.phone || "");
-      setAddress(data.address || "");
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/me`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        });
+        const data = await res.json();
+        setCustomer(data);
+        setName(data.name || "");
+        setEmail(data.email || "");
+        setPhone(data.phone || "");
+        setAddress(data.address || "");
+      } catch (error) {
+        console.error("Gagal mengambil data akun:", error);
+      }
     };
     fetchCustomer();
   }, []);
@@ -58,11 +62,17 @@ const MyAccount = () => {
         body: JSON.stringify({ name, phone, address }),
       });
       const data = await res.json();
-      if (!res.ok) return alert(data.message || "Gagal update profile");
-      alert("Profile berhasil diperbarui");
+      if (!res.ok) {
+        toast.error(data.message || "Gagal update profile");
+        return;
+      }
+      toast.success("Profile berhasil diperbarui");
       setCustomer(data.customer);
       localStorage.setItem("customer", JSON.stringify(data.customer));
-    } catch (error) { console.error(error); alert("Terjadi kesalahan"); }
+    } catch (error) {
+      console.error(error);
+      toast.error("Terjadi kesalahan sistem");
+    }
   };
 
   const handleLogout = async () => {
@@ -75,6 +85,7 @@ const MyAccount = () => {
     } catch (error) { console.error(error); }
     localStorage.removeItem("token");
     localStorage.removeItem("customer");
+    toast.success("Berhasil keluar dari akun.");
     window.location.href = "/signin";
   };
 
@@ -86,16 +97,11 @@ const MyAccount = () => {
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
           <div className="flex flex-col xl:flex-row gap-7.5">
             
-            {/* --- SIDEBAR MENU --- */}
             <div className="xl:max-w-[370px] w-full bg-white rounded-xl shadow-1">
               <div className="flex xl:flex-col">
                 <div className="hidden lg:flex flex-wrap items-center gap-5 py-6 px-4 sm:px-7.5 xl:px-9 border-r xl:border-r-0 xl:border-b border-gray-3">
-                  {/* <div className="max-w-[64px] w-full h-16 rounded-full overflow-hidden">
-                    <Image src="/images/users/user-04.jpg" alt="user" width={64} height={64} />
-                  </div> */}
                   <div>
                     <p className="font-medium text-dark mb-0.5">{customer?.name}</p>
-                    {/* 🔥 PERBAIKAN: Membaca kolom created_at dari database secara dinamis */}
                     <p className="text-custom-xs text-gray-500">
                       Member Sejak {customer?.created_at ? formatMemberSince(customer.created_at) : "..."}
                     </p>
@@ -129,7 +135,6 @@ const MyAccount = () => {
               </div>
             </div>
 
-            {/* --- KONTEN KANAN --- */}
             <div className="xl:max-w-[770px] w-full">
               {activeTab === "orders" ? (
                 <div className="bg-white p-6 rounded-xl shadow-1">

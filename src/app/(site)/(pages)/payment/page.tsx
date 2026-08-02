@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { checkoutFileCache } from "@/components/Checkout"; 
 import { directDirectFileCache } from "@/components/Common/QuickViewModal";
+import { toast } from "sonner";
 
 const PaymentContent = () => {
   const searchParams = useSearchParams();
@@ -36,20 +37,20 @@ const PaymentContent = () => {
       const token = localStorage.getItem("token"); 
 
       if (!token) {
-        alert("Sesi Anda telah habis. Silakan login kembali.");
+        toast.error("Sesi Anda telah habis. Silakan login kembali.");
         router.push("/login");
         return;
       }
 
       if (!(window as any).snap) {
-        alert("Sistem pembayaran Midtrans belum siap sepenuhnya. Mohon tunggu beberapa detik, lalu klik kembali.");
+        toast.error("Sistem pembayaran Midtrans belum siap sepenuhnya. Mohon tunggu beberapa detik, lalu klik kembali.");
         setIsProcessing(false);
         return;
       }
 
       const pendingCheckoutRaw = sessionStorage.getItem("pendingCheckoutData");
       if (!pendingCheckoutRaw) {
-        alert("Data transaksi tidak ditemukan. Silakan ulangi checkout.");
+        toast.error("Data transaksi tidak ditemukan. Silakan ulangi checkout.");
         router.push("/checkout");
         return;
       }
@@ -89,28 +90,23 @@ const PaymentContent = () => {
             });
           }
 
-          // Kirim opsi teks tambahan jika ada
           if (item.selectedOptions && typeof item.selectedOptions === "object") {
             Object.entries(item.selectedOptions).forEach(([key, val]) => {
               formData.append(`items[${index}][selectedOptions][${key}]`, String(val));
             });
           }
 
-// 1. JIKA PILIH SIAP CETAK (Cek File Utama)
             if (pendingCheckoutData.design_method === "ready-to-print" && checkoutFileCache.readyDesignFile) {
               formData.append(`items[${index}][design_file]`, checkoutFileCache.readyDesignFile);
             } 
             
-            // 2. JIKA BUTUH DESAIN (Cek File Referensi/Support dari Chatbot atau Modal Beli Langsung)
             else if (pendingCheckoutData.design_method === "need-design") {
               
-              // A. Ambil dari Cache Chatbot Nora / Checkout
               if (checkoutFileCache.supportFiles && checkoutFileCache.supportFiles.length > 0) {
                 checkoutFileCache.supportFiles.forEach((file: File) => {
                   formData.append(`items[${index}][reference_files][]`, file);
                 });
               } 
-              // B. Atau Ambil dari Cache QuickView Modal Beli Langsung
               else if (directDirectFileCache.supportFiles && directDirectFileCache.supportFiles.length > 0) {
                 directDirectFileCache.supportFiles.forEach((file: File) => {
                   formData.append(`items[${index}][reference_files][]`, file);
@@ -139,48 +135,40 @@ const PaymentContent = () => {
       }
 
     (window as any).snap.pay(data.token, {
-          // 🌟 1. HANYA JIKA PEMBAYARAN BERHASIL LUNAS
           onSuccess: function (result: any) {
-            alert("Pembayaran Berhasil! Pesanan Anda sedang diproses.");
+            toast.success("Pembayaran Berhasil! Pesanan Anda sedang diproses.");
             
-            // Hapus data temporary checkout dari sessionStorage
             sessionStorage.removeItem("pendingCheckoutData");
             sessionStorage.removeItem("directCheckoutItem");
             
-            // REDIRECT KE HALAMAN INVOICE HANYA SAAT BERHASIL/LUNAS
             router.push(`/invoice/${data.order_id}`);
           },
 
-          // 🌟 2. JIKA QRIS / VIRTUAL ACCOUNT DIBUAT TAPI BELUM DIBAYAR
           onPending: function (result: any) {
-            alert("Kode QRIS / Instruksi Pembayaran telah dibuat. Silakan selesaikan pembayaran Anda di menu Pesanan Saya.");
+            toast.success("Kode QRIS / Instruksi Pembayaran telah dibuat. Silakan selesaikan pembayaran Anda di menu Pesanan Saya.");
             
             sessionStorage.removeItem("pendingCheckoutData");
             sessionStorage.removeItem("directCheckoutItem");
             
-            // REDIRECT KE MY ORDER (MENUNGGU PEMBAYARAN)
             router.push("/my-account?tab=orders");
           },
 
-          // 🌟 3. JIKA PEMBAYARAN GAGAL/EXPIRED
           onError: function (result: any) {
-            alert("Pembayaran Gagal! Silakan coba lagi.");
+            toast.error("Pembayaran Gagal! Silakan coba lagi.");
             setIsProcessing(false);
           },
 
-          // 🌟 4. JIKA USER CLOSE POP-UP MIDTRANS SEBELUM/SAAT BAYAR
           onClose: function () {
-            alert("Pembayaran belum selesai. Pesanan Anda tersimpan di menu Pesanan Saya dengan status Menunggu Pembayaran.");
+            toast.error("Pembayaran belum selesai. Pesanan Anda tersimpan di menu Pesanan Saya dengan status Menunggu Pembayaran.");
             
             sessionStorage.removeItem("pendingCheckoutData");
             sessionStorage.removeItem("directCheckoutItem");
             
-            // REDIRECT KE HALAMAN AKUN / DAFTAR PESANAN SAYA
             router.push("/my-account?tab=orders");
           },
         });
     } catch (error: any) {
-      alert(error.message || "Terjadi kesalahan koneksi ke server Laravel.");
+      toast.error(error.message || "Terjadi kesalahan koneksi ke server Laravel.");
       setIsProcessing(false);
     }
   };
@@ -201,7 +189,6 @@ const PaymentContent = () => {
               Rp {Number(amount).toLocaleString("id-ID")}
             </p>
             <div className="text-xs space-y-1 text-gray-600 border-t border-gray-200 pt-3">
-              {/* <p><strong>Order ID:</strong> {orderId}</p> */}
               <p className="text-gray-400 mt-2">
                 * Metode pembayaran seperti QRIS, Transfer Bank (Virtual Account) dll. akan tersedia langsung di dalam pop-up Midtrans.
               </p>

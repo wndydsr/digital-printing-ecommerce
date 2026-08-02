@@ -14,6 +14,7 @@ import CartSidebarModal from "@/components/Common/CartSidebarModal";
 import { PreviewSliderProvider } from "../context/PreviewSliderContext";
 import PreviewSliderModal from "@/components/Common/PreviewSlider";
 import ChatBotWidget from "@/components/Common/ChatBotWidget";
+import { Toaster } from "sonner"; // 👈 1. Import Toaster Sonner
 
 import ScrollToTop from "@/components/Common/ScrollToTop";
 import PreLoader from "@/components/Common/PreLoader";
@@ -38,6 +39,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#2563eb" />
       </head>
       <body>
+        <Toaster position="top-right" richColors /> {/* 👈 2. Pasang Toaster Sonner di sini */}
         {loading ? (
           <PreLoader />
         ) : (

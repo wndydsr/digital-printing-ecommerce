@@ -3,6 +3,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 
 const MyOrdersContent = () => {
   const [orders, setOrders] = useState<any[]>([]);
@@ -10,25 +11,22 @@ const MyOrdersContent = () => {
   const [activeTab, setActiveTab] = useState("Menunggu Pembayaran");
   const [openOrderDetail, setOpenOrderDetail] = useState<any>(null);
 
-  // State untuk Pagination Frontend
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Reset ke halaman 1 setiap kali tab aktif berubah
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab]);
 
-  // 🌟 INJEKSI AUTOMATIS SCRIPT MIDTRANS SNAP
   useEffect(() => {
     const existingScript = document.getElementById("midtrans-snap-script");
     if (!existingScript) {
       const script = document.createElement("script");
       script.id = "midtrans-snap-script";
-      script.src = "https://app.midtrans.com/snap/snap.js"; // Ganti dengan app.midtrans.com jika Production
+      script.src = "https://app.midtrans.com/snap/snap.js";
       script.setAttribute("data-client-key", process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "");
       script.async = true;
       document.body.appendChild(script);
@@ -36,7 +34,6 @@ const MyOrdersContent = () => {
     fetchOrders();
   }, []);
 
-  // 🛠️ FUNGSI SINKRON TAHAPAN DENGAN DATABASE
   const getOrderStatus = (stageId: number) => {
     switch (stageId) {
       case 1:
@@ -122,7 +119,6 @@ const MyOrdersContent = () => {
     },
   ];
 
-  // 🛠️ KOMPONEN COUNTDOWN TIMER (Berbasis created_at + 30 menit)
   const CountdownTimer = ({ createdAt }: { createdAt: string }) => {
     const [timeLeft, setTimeLeft] = useState("");
 
@@ -177,7 +173,6 @@ const MyOrdersContent = () => {
     }
   };
 
-  // 🛠️ FUNGSI UNTUK MEMBATALKAN PESANAN
   const handleCancelOrder = async (orderId: number) => {
     if (!confirm("Apakah Anda yakin ingin membatalkan pesanan ini?")) return;
 
@@ -193,19 +188,18 @@ const MyOrdersContent = () => {
       });
 
       if (res.ok) {
-        alert("Pesanan berhasil dibatalkan.");
+        toast.success("Pesanan berhasil dibatalkan.");
         setOpenOrderDetail(null);
         fetchOrders(); 
       } else {
-        alert("Gagal membatalkan pesanan.");
+        toast.error("Gagal membatalkan pesanan.");
       }
     } catch (error) {
       console.error(error);
-      alert("Terjadi kesalahan sistem.");
+      toast.error("Terjadi kesalahan sistem.");
     }
   };
 
-  // 🌟 FUNGSI BARU: BUKA SNAP MIDTRANS UNTUK TOMBOL BAYAR SEKARANG
   const handlePayNow = async (order: any) => {
     try {
       const token = localStorage.getItem("token");
@@ -222,27 +216,26 @@ const MyOrdersContent = () => {
       if (json.token) {
         (window as any).snap.pay(json.token, {
           onSuccess: function () {
-            alert("Pembayaran Berhasil!");
+            toast.success("Pembayaran Berhasil!");
             setOpenOrderDetail(null);
             fetchOrders();
           },
           onPending: function () {
-            alert("Menunggu pembayaran Anda diselesaikan.");
+            toast.success("Menunggu pembayaran Anda diselesaikan.");
           },
           onError: function () {
-            alert("Pembayaran gagal, silakan coba lagi.");
+            toast.error("Pembayaran gagal, silakan coba lagi.");
           },
         });
       } else {
-        alert("Gagal memuat token pembayaran: " + (json.error || "Terjadi kesalahan"));
+        toast.error("Gagal memuat token pembayaran: " + (json.error || "Terjadi kesalahan"));
       }
     } catch (err) {
       console.error(err);
-      alert("Gagal menghubungkan ke server pembayaran.");
+      toast.error("Gagal menghubungkan ke server pembayaran.");
     }
   };
 
-  // 🛠️ FILTER TAB UTAMA (Disesuaikan dengan status Plotting Admin)
   const filteredOrders = orders.filter((order) => {
     const stageId = Number(order.current_stage_id);
 
@@ -269,7 +262,6 @@ const MyOrdersContent = () => {
     }
   });
 
-  // 🛠️ LOGIC PAGINASI FRONTEND
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentFilteredOrders = filteredOrders.slice(indexOfFirstItem, indexOfLastItem);
@@ -281,7 +273,6 @@ const MyOrdersContent = () => {
     <section className="pb-20 bg-gray-50 min-h-screen">
       <div className="max-w-[1000px] mx-auto px-4">
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          {/* HEADER */}
           <div className="flex items-center gap-2.5 px-6 py-5">
             <span className="w-7 h-7 rounded-lg bg-blue text-white flex items-center justify-center">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -292,7 +283,6 @@ const MyOrdersContent = () => {
             <h1 className="text-lg font-bold text-dark">Pesanan Saya</h1>
           </div>
 
-          {/* TABS MENU */}
           <div className="flex overflow-x-auto px-2">
             {tabs.map((tab) => (
               <button
@@ -310,7 +300,6 @@ const MyOrdersContent = () => {
             ))}
           </div>
 
-          {/* ORDER LIST CARD AREA */}
           <div className="p-6">
             {loading ? (
               <p className="text-center text-sm text-gray-400 py-20">Memuat pesanan...</p>
@@ -323,7 +312,6 @@ const MyOrdersContent = () => {
                       onClick={() => setOpenOrderDetail(order)}
                       className="bg-white p-5 rounded-xl border-gray-200 border shadow-sm cursor-pointer hover:border-slate-300 transition-all"
                     >
-                      {/* Header Order */}
                       <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
                         <div>
                           <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
@@ -335,14 +323,12 @@ const MyOrdersContent = () => {
                         </span>
                       </div>
 
-                      {/* Tampilkan Timer jika status Menunggu Pembayaran */}
                       {Number(order.current_stage_id) === 7 && (
                         <div className="mb-3 bg-red-50 p-2.5 rounded-lg border border-red-100 flex items-center justify-between">
                           <CountdownTimer createdAt={order.created_at} />
                         </div>
                       )}
 
-                      {/* List Item Produk (Dibatasi maks 2 item) */}
                       <div className="space-y-2 mb-4">
                         {order.order_items &&
                           order.order_items.slice(0, 2).map((item: any, idx: number) => {
@@ -394,7 +380,6 @@ const MyOrdersContent = () => {
                             );
                           })}
 
-                        {/* Indikator jika produk lebih dari 2 */}
                         {order.order_items && order.order_items.length > 2 && (
                           <p className="text-[11px] text-blue font-medium text-center pt-1">
                             + {order.order_items.length - 2} produk lainnya (Klik untuk lihat detail)
@@ -402,7 +387,6 @@ const MyOrdersContent = () => {
                         )}
                       </div>
 
-                      {/* Footer Ringkasan Kartu Utama */}
                       <div className="flex justify-between items-center border-t border-gray-100 pt-3" onClick={(e) => e.stopPropagation()}>
                         <div className="text-xs text-gray-400">
                           Total Pembayaran: <span className="font-black text-sm text-blue ml-1">Rp {Number(order.total_price).toLocaleString("id-ID")}</span>
@@ -423,7 +407,6 @@ const MyOrdersContent = () => {
                   </div>
                 )}
 
-                {/* TOMBOL PAGINASI FRONTEND */}
                 {!loading && totalPages > 1 && (
                   <div className="flex justify-center items-center gap-3 mt-6 pt-4 border-t border-gray-200">
                     <button
@@ -451,12 +434,10 @@ const MyOrdersContent = () => {
         </div>
       </div>
 
-      {/* ─── POPUP MODAL DETAIL ─── */}
       {openOrderDetail && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="max-w-[1000px] w-full bg-white rounded-2xl shadow-sm overflow-hidden my-auto">
             
-            {/* HEADER POPUP */}
             <div className="flex justify-between items-center px-6 py-5 border-b border-gray-200">
               <div className="flex items-center gap-2.5">
                 <span className="w-7 h-7 rounded-lg bg-blue text-white flex items-center justify-center">
@@ -475,11 +456,9 @@ const MyOrdersContent = () => {
               </button>
             </div>
 
-            {/* AREA UTAMA POPUP */}
             <div className="p-6">
               <div className="bg-white p-5 rounded-xl border-gray-200 border shadow-sm">
                 
-                {/* Header Order Card */}
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-2">
                   <div>
                     <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">
@@ -497,7 +476,6 @@ const MyOrdersContent = () => {
                   </span>
                 </div>
 
-                {/* List Item Produk di Modal (Tampil Lengkap) */}
                 <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto pr-1">
                   {openOrderDetail.order_items &&
                     openOrderDetail.order_items.map((item: any, idx: number) => {
@@ -529,7 +507,6 @@ const MyOrdersContent = () => {
                             </div>
                           </div>
 
-                          {/* TOMBOL CHAT PER ITEM PRODUK */}
                           <div className="flex flex-col items-end gap-2 shrink-0">
                             <p className="font-semibold text-sm text-dark">
                               Rp {Number(
@@ -560,7 +537,6 @@ const MyOrdersContent = () => {
                     })}
                 </div>
 
-                {/* INFO STATUS & RELASI DB KHUSUS */}
                 <div className="bg-white p-3 border border-gray-200 rounded-xl mb-4 text-xs space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-400 font-semibold">Status Alur Sistem (Global):</span>
@@ -574,7 +550,6 @@ const MyOrdersContent = () => {
                   )}
                 </div>
 
-                {/* Rincian Total Bayar & Tombol Aksi */}
                 <div className="flex flex-wrap justify-between items-center gap-3 border-t border-gray-200 pt-3">
                   <div className="text-sm">
                     <span className="text-gray-400">Total: </span>
@@ -584,7 +559,6 @@ const MyOrdersContent = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Jika status Menunggu Pembayaran (Stage ID 7) */}
                     {Number(openOrderDetail.current_stage_id) === 7 && (
                       <div className="flex gap-2 w-full sm:w-auto">
                         <button

@@ -9,6 +9,7 @@ import { useAppSelector, AppDispatch } from "@/redux/store";
 import { useDispatch } from "react-redux";
 import { removeItemFromCart } from "@/redux/features/cart-slice"; 
 import { directDirectFileCache } from "../Common/QuickViewModal";
+import { toast } from "sonner";
 
 export const checkoutFileCache = {
   readyDesignFile: null as File | null,
@@ -89,7 +90,7 @@ const Checkout = () => {
           },
           (error) => {
             console.error("GPS Terblokir/Error: ", error);
-            alert("Gagal mendeteksi koordinat otomatis. Silakan gunakan kolom pencarian jalan atau geser penanda manual.");
+            toast.error("Gagal mendeteksi koordinat otomatis. Silakan gunakan kolom pencarian jalan atau geser penanda manual.");
             handleLocationChange(STORE_LAT, STORE_LNG);
             setGpsLoading(false);
           },
@@ -104,7 +105,6 @@ const Checkout = () => {
   const totalPayment = totalPrice + shippingCost;
   const allCartItems = useAppSelector((state: any) => state.cartReducer.items);
 
-  // ─── 🛠️ FIX KALKULASI HARGA CHECKOUT AGAR TIDAK 0 ───
   const calculateItemPrice = (item: any) => {
     let basePrice = Number(item.price || item.product?.price || 0);
 
@@ -113,7 +113,6 @@ const Checkout = () => {
       try { selectedOpts = JSON.parse(selectedOpts); } catch { selectedOpts = {}; }
     }
 
-    // Hitung tambahan harga dari atribut produk
     if (item.product?.attributes && Array.isArray(item.product.attributes) && typeof selectedOpts === "object") {
       item.product.attributes.forEach((attr: any) => {
         const selectedVal = selectedOpts[attr.name] || selectedOpts[attr.id];
@@ -128,7 +127,6 @@ const Checkout = () => {
       });
     }
 
-    // Hitung perkalian luas dimensi (Panjang x Lebar)
     const panjang = Number(item.panjang || 0);
     const lebar = Number(item.lebar || 0);
     const isCustom = item.product?.is_custom == 1 || item.product?.is_custom === true;
@@ -148,7 +146,6 @@ useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const type = params.get("type");
 
-    // 🌟 1. CEK DULU ADA DATA PENDING DARI CHATBOT ATAU TIDAK
     const pendingChatbotData = sessionStorage.getItem("pendingCheckoutData");
 
     if (pendingChatbotData) {
@@ -157,7 +154,6 @@ useEffect(() => {
         if (parsedPayload.items && parsedPayload.items.length > 0) {
           setIsDirect(true);
 
-          // 🔧 PERBAIKAN: Petakan title & img agar UI merender Foto & Nama Produk dengan sempurna
           const formattedItems = parsedPayload.items.map((item: any) => ({
             ...item,
             title: item.title || item.product_name || item.name || "Produk Cetak",
@@ -167,21 +163,19 @@ useEffect(() => {
 
           setCartItems(formattedItems);
           
-          // Hitung total dari subtotal items
           const calculatedTotal = formattedItems.reduce((sum: number, item: any) => {
             const itemPrice = Number(item.subtotal || item.price || 0);
             return sum + itemPrice;
           }, 0);
 
           setTotalPrice(calculatedTotal || Number(parsedPayload.total_price || 0));
-          return; // Hentikan di sini jika data chatbot ditemukan!
+          return; 
         }
       } catch (err) {
         console.error("Gagal parse data chatbot checkout:", err);
       }
     }
 
-    // 2. CEK JIKA DIRECT CHECKOUT BIASA (Beli Langsung dari Modal)
     if (type === "direct") {
       setIsDirect(true);
       const directItem = sessionStorage.getItem("directCheckoutItem");
@@ -196,7 +190,6 @@ useEffect(() => {
         }
       }
     } else {
-      // 3. JIKA CHECKOUT KERANJANG REDUX BIASA
       setIsDirect(false);
       setCartItems(allCartItems);
       const totalRedux = allCartItems.reduce((sum: number, item: any) => {
@@ -214,7 +207,6 @@ useEffect(() => {
       try {
         const currentDesignMethod = cartItems[0]?.designMethod || cartItems[0]?.design_method || "ready-to-print";
 
-        // 🌟 1. SINKRONISASI CACHE FILE: Pindahkan cache Chatbot ke directDirectFileCache agar terbaca oleh Payment.tsx
         if (checkoutFileCache.supportFiles && checkoutFileCache.supportFiles.length > 0) {
           directDirectFileCache.supportFiles = checkoutFileCache.supportFiles;
         }
@@ -249,7 +241,6 @@ useEffect(() => {
                   ? Object.values(item.selectedOptions).map((opt: any) => String(opt.id || opt)).filter((id) => !isNaN(Number(id)))
                   : []);
 
-            // 🌟 2. SINKRONISASI CATATAN: Utamakan catatan dari Chatbot/Item terlebih dahulu
             const finalCatatan = item.catatan || directDirectFileCache.catatan || "";
 
             return {
@@ -261,7 +252,6 @@ useEffect(() => {
               need_design: itemMethod === "need-design" ? "1" : "0",
               dummy_file_name: dynamicDummyName,
               
-              // Simpan catatan utuh untuk backend Laravel
               catatan: finalCatatan,
               design_notes: finalCatatan,
               
@@ -289,7 +279,6 @@ useEffect(() => {
             <div className="flex flex-col lg:flex-row gap-7.5 xl:gap-11">
               <div className="lg:max-w-[670px] w-full space-y-6">
                 
-                {/* Ringkasan Belanjaan */}
                 <div className="bg-white shadow-1 rounded-[10px] overflow-hidden">
                   <div className="border-b border-gray-3 py-5 px-6">
                     <h3 className="font-medium text-xl text-dark">Item Pesanan</h3>

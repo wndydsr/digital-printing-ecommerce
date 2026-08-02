@@ -6,6 +6,7 @@ import { AppDispatch, useAppSelector } from "@/redux/store";
 import { addItemToCart } from "@/redux/features/cart-slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export const directDirectFileCache = {
   readyDesignFile: null as File | null,
@@ -27,7 +28,6 @@ const QuickViewModal = () => {
   const [panjang, setPanjang] = useState("");
   const [lebar, setLebar] = useState("");
 
-  // 🔥 STATE MANAJEMEN BERKAS & TAHAPAN DESAIN (EKSKLUSIF SESUAI GAMBAR UI)
   const [designMethod, setDesignMethod] = useState<"ready-to-print" | "need-design">("ready-to-print");
   const [readyDesignFile, setReadyDesignFile] = useState<File | null>(null);
   const [supportFiles, setSupportFiles] = useState<File[]>([]);
@@ -74,29 +74,26 @@ const QuickViewModal = () => {
 
   const productImages = [photoUrl];
 
-  // 🔥 VALIDASI SEBELUM MASUK DATABASE / KERANJANG
   const validateInput = () => {
     if (isCustom) {
       if (!panjang || Number(panjang) <= 0) {
-        alert("Mohon masukkan ukuran panjang yang valid.");
+        toast.error("Mohon masukkan ukuran panjang yang valid.");
         return false;
       }
       if (!lebar || Number(lebar) <= 0) {
-        alert("Mohon masukkan ukuran lebar yang valid.");
+        toast.error("Mohon masukkan ukuran lebar yang valid.");
         return false;
       }
     }
     
-    // Validasi file wajib jika memilih metode Sudah Punya Desain
     if (designMethod === "ready-to-print" && !readyDesignFile) {
-      alert("Mohon upload berkas desain master siap cetak Anda terlebih dahulu.");
+      toast.error("Mohon upload berkas desain master siap cetak Anda terlebih dahulu.");
       return false;
     }
     
     return true;
   };
 
-  // 🔥 PARSER ATRIBUT ASLI (KEMBALI SEPERTI SEMULA AGAR DB MENERIMA FORMATNYA)
   const getFormattedOptions = () => {
     const formattedOptions: Record<string, string> = {};
     if (selectedAttributes && typeof selectedAttributes === "object") {
@@ -113,7 +110,6 @@ const QuickViewModal = () => {
     return formattedOptions;
   };
 
-  // 🔥 AMBIL ARRAY ID ANGKA UNTUK BACKEND
   const getAttributeIds = () => {
     if (!selectedAttributes || typeof selectedAttributes !== "object") return [];
     return Object.values(selectedAttributes)
@@ -126,7 +122,7 @@ const QuickViewModal = () => {
     formData.append("customer_id", customerId);
     formData.append("product_id", product.id.toString());
     formData.append("quantity", quantity.toString());
-    formData.append("price", hargaPerItem.toString()); // 🔥 HARGA TERKIRIM DAN TERSIMPAN DI DB CART
+    formData.append("price", hargaPerItem.toString());
     formData.append("panjang", isCustom ? panjang : "0");
     formData.append("lebar", isCustom ? lebar : "0");
     formData.append("catatan", designNotes);
@@ -138,7 +134,6 @@ const QuickViewModal = () => {
     const formattedOptions = getFormattedOptions();
     formData.append("selected_options", JSON.stringify(formattedOptions));
 
-    // 🔥 SESUAIKAN DENGAN VALIDASI LARAVEL
     if (isNeedDesign) {
       supportFiles.forEach((file) => {
         formData.append("reference_files[]", file);
@@ -159,7 +154,7 @@ const QuickViewModal = () => {
     const token = localStorage.getItem("token");
 
     if (!customerStr || !token) {
-      alert("Silakan login terlebih dahulu");
+      toast.error("Silakan login terlebih dahulu");
       router.push("/signin"); 
       return;
     }
@@ -190,7 +185,7 @@ const QuickViewModal = () => {
         dispatch(addItemToCart({
           id: product.id,
           title: product.name,
-          price: hargaPerItem, // 🔥 AMBIL HARGA MATANG
+          price: hargaPerItem,
           quantity: quantity,
           photo: product.photo,
           img: photoUrl,
@@ -204,16 +199,16 @@ const QuickViewModal = () => {
           dummy_file_name: designMethod === "need-design" 
             ? (supportFiles?.[0]?.name || "materi_referensi_pembeli.png") 
             : null,
-            
+          
           imgs: { previews: [photoUrl], thumbnails: [photoUrl] }
         } as any));
         
-        alert("Pesanan berhasil dimasukkan ke keranjang!");
+        toast.success("Pesanan berhasil dimasukkan ke keranjang!");
         closeModal();
       
       } catch (error) {
         console.error("Gagal menyimpan keranjang:", error);
-        alert("Terjadi kesalahan sistem saat menambahkan data ke keranjang.");
+        toast.error("Terjadi kesalahan sistem saat menambahkan data ke keranjang.");
       }
     }
   };
@@ -225,7 +220,7 @@ const QuickViewModal = () => {
     const token = localStorage.getItem("token");
 
     if (!customerStr || !token) {
-      alert("Silakan login terlebih dahulu");
+      toast.error("Silakan login terlebih dahulu");
       router.push("/signin");
       return;
     }

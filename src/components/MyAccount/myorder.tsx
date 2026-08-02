@@ -373,7 +373,13 @@ const MyOrdersContent = () => {
 
                                 <div className="flex flex-col items-end gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                                   <p className="font-bold text-xs text-dark">
-                                    Rp {Number(item.price * item.quantity).toLocaleString("id-ID")}
+                                    Rp {Number(
+                                      (item.subtotal && Number(item.subtotal) > 0) 
+                                        ? item.subtotal 
+                                        : (item.price && Number(item.price) > 0) 
+                                          ? item.price * item.quantity 
+                                          : order.total_price
+                                    ).toLocaleString("id-ID")}
                                   </p>
                                   {currentItemStageId === 3 && order.designer_id ? (
                                     <button
@@ -526,7 +532,13 @@ const MyOrdersContent = () => {
                           {/* TOMBOL CHAT PER ITEM PRODUK */}
                           <div className="flex flex-col items-end gap-2 shrink-0">
                             <p className="font-semibold text-sm text-dark">
-                              Rp {Number(item.price * item.quantity).toLocaleString("id-ID")}
+                              Rp {Number(
+                                (item.subtotal && Number(item.subtotal) > 0) 
+                                  ? item.subtotal 
+                                  : (item.price && Number(item.price) > 0) 
+                                    ? item.price * item.quantity 
+                                    : openOrderDetail.total_price
+                              ).toLocaleString("id-ID")}
                             </p>
                             {(currentItemStageId === 1 || currentItemStageId === 3 || currentItemStageId === 6) && openOrderDetail.designer_id ? (
                               <button

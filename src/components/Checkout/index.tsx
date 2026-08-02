@@ -207,63 +207,78 @@ useEffect(() => {
   }, [allCartItems]);
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customerData || cartItems.length === 0 || gpsLoading) return;
+      e.preventDefault();
+      if (!customerData || cartItems.length === 0 || gpsLoading) return;
 
-    setLoading(true);
-    try {
-      const currentDesignMethod = cartItems[0]?.designMethod || cartItems[0]?.design_method || "ready-to-print";
+      setLoading(true);
+      try {
+        const currentDesignMethod = cartItems[0]?.designMethod || cartItems[0]?.design_method || "ready-to-print";
 
-      const checkoutPayload = {
-        customer_id: customerData.id,
-        total_price: totalPrice.toString(),
-        shipping_method: shippingMethod,
-        shipping_cost: shippingCost.toString(),
-        is_direct: isDirect,
-        design_method: currentDesignMethod, 
-        current_stage_id: 7,
-        shipping_latitude: selectedLat.toString(),
-        shipping_longitude: selectedLng.toString(),
-        items: cartItems.map((item) => {
-          const itemMethod = item.designMethod || item.design_method || "ready-to-print";
-          const dynamicDummyName = itemMethod === "need-design"
-            ? (isDirect ? directDirectFileCache.supportFiles?.[0]?.name : item.dummy_file_name) || "materi_referensi_pembeli.png"
-            : (item.dummy_file_name || null);
+        // 🌟 1. SINKRONISASI CACHE FILE: Pindahkan cache Chatbot ke directDirectFileCache agar terbaca oleh Payment.tsx
+        if (checkoutFileCache.supportFiles && checkoutFileCache.supportFiles.length > 0) {
+          directDirectFileCache.supportFiles = checkoutFileCache.supportFiles;
+        }
+        if (checkoutFileCache.readyDesignFile) {
+          directDirectFileCache.readyDesignFile = checkoutFileCache.readyDesignFile;
+        }
 
-          let selectedOpts = item.selectedOptions || {};
-          if (typeof selectedOpts === "string") {
-            try { selectedOpts = JSON.parse(selectedOpts); } catch { selectedOpts = {}; }
-          }
+        const checkoutPayload = {
+          customer_id: customerData.id,
+          total_price: totalPrice.toString(),
+          shipping_method: shippingMethod,
+          shipping_cost: shippingCost.toString(),
+          is_direct: isDirect,
+          design_method: currentDesignMethod, 
+          current_stage_id: 7,
+          shipping_latitude: selectedLat.toString(),
+          shipping_longitude: selectedLng.toString(),
+          items: cartItems.map((item) => {
+            const itemMethod = item.designMethod || item.design_method || "ready-to-print";
+            const dynamicDummyName = itemMethod === "need-design"
+              ? (checkoutFileCache.supportFiles?.[0]?.name || directDirectFileCache.supportFiles?.[0]?.name || item.dummy_file_name || "materi_referensi_pembeli.png")
+              : (item.dummy_file_name || null);
 
-          const finalAttributes = item.attributeIds && Array.isArray(item.attributeIds)
-            ? item.attributeIds
-            : (item.selectedOptions && typeof item.selectedOptions === "object"
-                ? Object.values(item.selectedOptions).map((opt: any) => String(opt.id || opt)).filter((id) => !isNaN(Number(id)))
-                : []);
+            let selectedOpts = item.selectedOptions || {};
+            if (typeof selectedOpts === "string") {
+              try { selectedOpts = JSON.parse(selectedOpts); } catch { selectedOpts = {}; }
+            }
 
-          return {
-            id: item.id,
-            product_id: item.product_id || item.id,
-            quantity: item.quantity,
-            panjang: item.panjang || 0,
-            lebar: item.lebar || 0,
-            need_design: itemMethod === "need-design" ? "1" : "0",
-            dummy_file_name: dynamicDummyName,
-            catatan: isDirect ? directDirectFileCache.catatan : (item.catatan || ""),
-            selectedOptions: selectedOpts,
-            attributes: finalAttributes
-          };
-        })
-      };
+            const finalAttributes = item.attributeIds && Array.isArray(item.attributeIds)
+              ? item.attributeIds
+              : (item.selectedOptions && typeof item.selectedOptions === "object"
+                  ? Object.values(item.selectedOptions).map((opt: any) => String(opt.id || opt)).filter((id) => !isNaN(Number(id)))
+                  : []);
 
-      sessionStorage.setItem("pendingCheckoutData", JSON.stringify(checkoutPayload));
-      router.push(`/payment?amount=${totalPayment}`);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+            // 🌟 2. SINKRONISASI CATATAN: Utamakan catatan dari Chatbot/Item terlebih dahulu
+            const finalCatatan = item.catatan || directDirectFileCache.catatan || "";
+
+            return {
+              id: item.id,
+              product_id: item.product_id || item.id,
+              quantity: item.quantity,
+              panjang: item.panjang || 0,
+              lebar: item.lebar || 0,
+              need_design: itemMethod === "need-design" ? "1" : "0",
+              dummy_file_name: dynamicDummyName,
+              
+              // Simpan catatan utuh untuk backend Laravel
+              catatan: finalCatatan,
+              design_notes: finalCatatan,
+              
+              selectedOptions: selectedOpts,
+              attributes: finalAttributes
+            };
+          })
+        };
+
+        sessionStorage.setItem("pendingCheckoutData", JSON.stringify(checkoutPayload));
+        router.push(`/payment?amount=${totalPayment}`);
+      } catch (error) {
+        console.error("Gagal memproses checkout submit:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
   return (
     <>

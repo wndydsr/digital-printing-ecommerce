@@ -96,16 +96,27 @@ const PaymentContent = () => {
             });
           }
 
-          if (pendingCheckoutData.is_direct) {
+// 1. JIKA PILIH SIAP CETAK (Cek File Utama)
             if (pendingCheckoutData.design_method === "ready-to-print" && checkoutFileCache.readyDesignFile) {
               formData.append(`items[${index}][design_file]`, checkoutFileCache.readyDesignFile);
             } 
-           else if (pendingCheckoutData.design_method === "need-design" && directDirectFileCache.supportFiles?.length > 0) {
-              directDirectFileCache.supportFiles.forEach((file: File) => {
-                formData.append(`items[${index}][reference_files][]`, file);
-              });
+            
+            // 2. JIKA BUTUH DESAIN (Cek File Referensi/Support dari Chatbot atau Modal Beli Langsung)
+            else if (pendingCheckoutData.design_method === "need-design") {
+              
+              // A. Ambil dari Cache Chatbot Nora / Checkout
+              if (checkoutFileCache.supportFiles && checkoutFileCache.supportFiles.length > 0) {
+                checkoutFileCache.supportFiles.forEach((file: File) => {
+                  formData.append(`items[${index}][reference_files][]`, file);
+                });
+              } 
+              // B. Atau Ambil dari Cache QuickView Modal Beli Langsung
+              else if (directDirectFileCache.supportFiles && directDirectFileCache.supportFiles.length > 0) {
+                directDirectFileCache.supportFiles.forEach((file: File) => {
+                  formData.append(`items[${index}][reference_files][]`, file);
+                });
+              }
             }
-          }
         });
       }
 
@@ -128,35 +139,46 @@ const PaymentContent = () => {
       }
 
     (window as any).snap.pay(data.token, {
-      onSuccess: function (result: any) {
-        alert("Pembayaran Berhasil!");
-        sessionStorage.removeItem("pendingCheckoutData");
-        sessionStorage.removeItem("directCheckoutItem");
-        
-        // REDIRECT KE INVOICE HANYA JIKA PEMBAYARAN BENAR-BENAR BERHASIL
-        router.push(`/invoice/${data.order_id}`);
-      },
+          // 🌟 1. HANYA JIKA PEMBAYARAN BERHASIL LUNAS
+          onSuccess: function (result: any) {
+            alert("Pembayaran Berhasil! Pesanan Anda sedang diproses.");
+            
+            // Hapus data temporary checkout dari sessionStorage
+            sessionStorage.removeItem("pendingCheckoutData");
+            sessionStorage.removeItem("directCheckoutItem");
+            
+            // REDIRECT KE HALAMAN INVOICE HANYA SAAT BERHASIL/LUNAS
+            router.push(`/invoice/${data.order_id}`);
+          },
 
-      onPending: function (result: any) {
-        // Barcode QRIS / VA sudah dibuat tapi BELUM DIBAYAR
-        alert("Kode QRIS / Instruksi Pembayaran telah dibuat. Silakan selesaikan pembayaran Anda.");
-        sessionStorage.removeItem("pendingCheckoutData");
-        sessionStorage.removeItem("directCheckoutItem");
-        
-        // Redirect ke halaman daftar pesanan / akun (bukan invoice lunas)
-        router.push("/my-account?tab=orders");
-      },
+          // 🌟 2. JIKA QRIS / VIRTUAL ACCOUNT DIBUAT TAPI BELUM DIBAYAR
+          onPending: function (result: any) {
+            alert("Kode QRIS / Instruksi Pembayaran telah dibuat. Silakan selesaikan pembayaran Anda di menu Pesanan Saya.");
+            
+            sessionStorage.removeItem("pendingCheckoutData");
+            sessionStorage.removeItem("directCheckoutItem");
+            
+            // REDIRECT KE MY ORDER (MENUNGGU PEMBAYARAN)
+            router.push("/my-account?tab=orders");
+          },
 
-      onError: function (result: any) {
-        alert("Pembayaran Gagal! Silakan coba lagi.");
-        setIsProcessing(false);
-      },
+          // 🌟 3. JIKA PEMBAYARAN GAGAL/EXPIRED
+          onError: function (result: any) {
+            alert("Pembayaran Gagal! Silakan coba lagi.");
+            setIsProcessing(false);
+          },
 
-      onClose: function () {
-        // Dipanggil jika user menutup modal Snap tanpa menyelesaikan tindakan
-        setIsProcessing(false);
-      },
-    });
+          // 🌟 4. JIKA USER CLOSE POP-UP MIDTRANS SEBELUM/SAAT BAYAR
+          onClose: function () {
+            alert("Pembayaran belum selesai. Pesanan Anda tersimpan di menu Pesanan Saya dengan status Menunggu Pembayaran.");
+            
+            sessionStorage.removeItem("pendingCheckoutData");
+            sessionStorage.removeItem("directCheckoutItem");
+            
+            // REDIRECT KE HALAMAN AKUN / DAFTAR PESANAN SAYA
+            router.push("/my-account?tab=orders");
+          },
+        });
     } catch (error: any) {
       alert(error.message || "Terjadi kesalahan koneksi ke server Laravel.");
       setIsProcessing(false);

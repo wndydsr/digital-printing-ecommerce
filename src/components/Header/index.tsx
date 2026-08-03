@@ -10,6 +10,7 @@ import { useCartModalContext } from "@/app/context/CartSidebarModalContext";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation"; 
 import CartInitializer from "../Cart/CartInitializer"; 
+import { toast } from "sonner";
 
 const Header = () => {
   const cartItems = useAppSelector((state: any) => state.cartReducer.items) || [];
@@ -19,9 +20,10 @@ const Header = () => {
   const [stickyMenu, setStickyMenu] = useState(false);
   const { openCartModal } = useCartModalContext();
 
-  // 🔥 2. INISIALISASI PATHNAME & ROUTER
+  const [notifPermission, setNotifPermission] = useState<string>("granted");
+
   const pathname = usePathname(); 
-  const router = useRouter(); // <-- TAMBAHKAN BARIS INI!
+  const router = useRouter(); 
 
   const product = useAppSelector((state: any) => state.cartReducer.items) || [];
   const totalPrice = useSelector(selectTotalPrice) || 0;
@@ -33,12 +35,10 @@ const Header = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // 🔥 Arahkan ke halaman shop yang berisi ShopWithSidebar
       router.push(`/shop-with-sidebar?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 
-  // Sticky menu
   const handleStickyMenu = () => {
     if (window.scrollY >= 80) {
       setStickyMenu(true);
@@ -54,7 +54,32 @@ const Header = () => {
     };
   }, []);
   
-  // 🔥 3. PERBAIKAN USEEFFECT: AKAN DIJALANKAN ULANG SETIAP KALI PINDAH HALAMAN
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
+
+  const handleRequestPermission = async () => {
+    if (!("Notification" in window)) {
+      toast.error("Browser Anda tidak mendukung push notification.");
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      setNotifPermission(permission);
+
+      if (permission === "granted") {
+        toast.success("Notifikasi berhasil diaktifkan!");
+      } else if (permission === "denied") {
+        toast.error("Izin notifikasi diblokir di pengaturan browser Anda.");
+      }
+    } catch (err) {
+      console.error("Gagal meminta izin notifikasi:", err);
+    }
+  };
+
   useEffect(() => {
     const customerData = localStorage.getItem("customer");
 
@@ -70,10 +95,9 @@ const Header = () => {
         setCustomer(null);
       }
     } else {
-      // Pastikan diset null jika tidak ada data (Berguna saat Logout)
       setCustomer(null); 
     }
-  }, [pathname]); // <-- Kunci otomatis update ada di sini
+  }, [pathname]); 
 
   return (
     <>
@@ -100,41 +124,40 @@ const Header = () => {
                 />
               </Link>
 
-            <div className="max-w-[475px] w-full">
-              {/* 🔥 1. Tambahkan onSubmit pada form */}
-              <form onSubmit={handleSearch}>
-                <div className="flex items-center">
-                  <div className="relative max-w-[333px] sm:min-w-[333px] w-full">
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 inline-block w-px h-5.5 bg-gray-4"></span>
-                    <input
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      value={searchQuery}
-                      type="search"
-                      name="search"
-                      id="search"
-                      placeholder="Saya ingin mencari..."
-                      autoComplete="off"
-                      className="custom-search w-full rounded-r-[5px] bg-gray-1 !border-l-0 border border-gray-3 py-2.5 pl-4 pr-10 outline-none ease-in duration-200"
-                    />
+              <div className="max-w-[475px] w-full">
+                <form onSubmit={handleSearch}>
+                  <div className="flex items-center">
+                    <div className="relative max-w-[333px] sm:min-w-[333px] w-full">
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 inline-block w-px h-5.5 bg-gray-4"></span>
+                      <input
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        value={searchQuery}
+                        type="search"
+                        name="search"
+                        id="search"
+                        placeholder="Saya ingin mencari..."
+                        autoComplete="off"
+                        className="custom-search w-full rounded-r-[5px] bg-gray-1 !border-l-0 border border-gray-3 py-2.5 pl-4 pr-10 outline-none ease-in duration-200"
+                      />
 
-                    {/* 🔥 2. Ubah type="submit" agar Enter dan Klik bekerja */}
-                    <button
-                      id="search-btn"
-                      aria-label="Search"
-                      type="submit"
-                      className="flex items-center justify-center absolute right-3 top-1/2 -translate-y-1/2 ease-in duration-200 hover:text-blue"
-                    >
-                      <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17.2687 15.6656L12.6281 11.8969C14.5406 9.28123 14.3437 5.5406 11.9531 3.1781C10.6875 1.91248 8.99995 1.20935 7.19995 1.20935C5.39995 1.20935 3.71245 1.91248 2.44683 3.1781C-0.168799 5.79373 -0.168799 10.0687 2.44683 12.6844C3.71245 13.95 5.39995 14.6531 7.19995 14.6531C8.91558 14.6531 10.5187 14.0062 11.7843 12.8531L16.4812 16.65C16.5937 16.7344 16.7343 16.7906 16.875 16.7906C17.0718 16.7906 17.2406 16.7062 17.3531 16.5656C17.5781 16.2844 17.55 15.8906 17.2687 15.6656ZM7.19995 13.3875C5.73745 13.3875 4.38745 12.825 3.34683 11.7844C1.20933 9.64685 1.20933 6.18748 3.34683 4.0781C4.38745 3.03748 5.73745 2.47498 7.19995 2.47498C8.66245 2.47498 10.0125 3.03748 11.0531 4.0781C13.1906 6.2156 13.1906 9.67498 11.0531 11.7844C10.0406 12.825 8.66245 13.3875 7.19995 13.3875Z" fill="" />
-                      </svg>
-                    </button>
+                      <button
+                        id="search-btn"
+                        aria-label="Search"
+                        type="submit"
+                        className="flex items-center justify-center absolute right-3 top-1/2 -translate-y-1/2 ease-in duration-200 hover:text-blue"
+                      >
+                        <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M17.2687 15.6656L12.6281 11.8969C14.5406 9.28123 14.3437 5.5406 11.9531 3.1781C10.6875 1.91248 8.99995 1.20935 7.19995 1.20935C5.39995 1.20935 3.71245 1.91248 2.44683 3.1781C-0.168799 5.79373 -0.168799 10.0687 2.44683 12.6844C3.71245 13.95 5.39995 14.6531 7.19995 14.6531C8.91558 14.6531 10.5187 14.0062 11.7843 12.8531L16.4812 16.65C16.5937 16.7344 16.7343 16.7906 16.875 16.7906C17.0718 16.7906 17.2406 16.7062 17.3531 16.5656C17.5781 16.2844 17.55 15.8906 17.2687 15.6656ZM7.19995 13.3875C5.73745 13.3875 4.38745 12.825 3.34683 11.7844C1.20933 9.64685 1.20933 6.18748 3.34683 4.0781C4.38745 3.03748 5.73745 2.47498 7.19995 2.47498C8.66245 2.47498 10.0125 3.03748 11.0531 4.0781C13.1906 6.2156 13.1906 9.67498 11.0531 11.7844C10.0406 12.825 8.66245 13.3875 7.19995 13.3875Z" fill="" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </form>
+                </form>
+              </div>
             </div>
-          </div>
 
-            <div className="flex w-full lg:w-auto items-center gap-7.5">
+            <div className="flex w-full lg:w-auto items-center gap-5 sm:gap-7.5">
+              
               <div className="hidden xl:flex items-center gap-3.5">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" clipRule="evenodd" d="M4.7177 3.09215C5.94388 1.80121 7.9721 2.04307 8.98569 3.47665L10.2467 5.26014C11.0574 6.4068 10.9889 8.00097 10.0214 9.01965L9.7765 9.27743C9.77582 9.27921 9.7751 9.28115 9.77436 9.28323C9.76142 9.31959 9.7287 9.43538 9.7609 9.65513C9.82765 10.1107 10.1793 11.0364 11.607 12.5394C13.0391 14.0472 13.9078 14.4025 14.3103 14.4679C14.484 14.4961 14.5748 14.4716 14.6038 14.4614L15.0124 14.0312C15.8862 13.1113 17.2485 12.9301 18.347 13.5623L20.2575 14.662C21.8904 15.6019 22.2705 17.9011 20.9655 19.275L19.545 20.7705C19.1016 21.2373 18.497 21.6358 17.75 21.7095C15.9261 21.8895 11.701 21.655 7.27161 16.9917C3.13844 12.6403 2.35326 8.85538 2.25401 7.00615L2.92011 6.9704L2.25401 7.00615C2.20497 6.09248 2.61224 5.30879 3.1481 4.74464L4.7177 3.09215ZM7.7609 4.34262C7.24855 3.61797 6.32812 3.57473 5.80528 4.12518L4.23568 5.77767C3.90429 6.12656 3.73042 6.52646 3.75185 6.92576C3.83289 8.43558 4.48307 11.8779 8.35919 15.9587C12.4234 20.2375 16.1676 20.3584 17.6026 20.2167C17.8864 20.1887 18.1783 20.0313 18.4574 19.7375L19.8779 18.2419C20.4907 17.5968 20.3301 16.4345 19.5092 15.962L17.5987 14.8624C17.086 14.5673 16.4854 14.6584 16.1 15.0642L15.6445 15.5437L15.1174 15.043C15.6445 15.5438 15.6438 15.5445 15.6432 15.5452L15.6417 15.5467L15.6388 15.5498L15.6324 15.5562L15.6181 15.5704C15.6078 15.5803 15.5959 15.5913 15.5825 15.6031C15.5556 15.6266 15.5223 15.6535 15.4824 15.6819C15.4022 15.7387 15.2955 15.8012 15.1606 15.8544C14.8846 15.9633 14.5201 16.0216 14.0699 15.9485C13.1923 15.806 12.0422 15.1757 10.5194 13.5724C8.99202 11.9644 8.40746 10.7647 8.27675 9.87259C8.21022 9.41852 8.26346 9.05492 8.36116 8.78035C8.40921 8.64533 8.46594 8.53766 8.51826 8.4559C8.54435 8.41514 8.56922 8.381 8.5912 8.35322C8.60219 8.33933 8.61246 8.32703 8.62182 8.31627L8.63514 8.30129L8.64125 8.29465L8.64415 8.29154L8.64556 8.29004C8.64625 8.28931 8.64694 8.28859 9.17861 8.79357L8.64695 8.28858L8.93376 7.98662C9.3793 7.51755 9.44403 6.72317 9.02189 6.1261L7.7609 4.34262Z" fill="#3C50E0" />
@@ -156,6 +179,33 @@ const Header = () => {
 
               <div className="flex w-full lg:w-auto justify-between items-center gap-5">
                 <div className="flex items-center gap-5">
+                  
+                  {/* IKON NOTIFIKASI MINIMALIS */}
+                  {customer && (
+                    <button
+                      onClick={handleRequestPermission}
+                      title={notifPermission === "granted" ? "Notifikasi Aktif" : "Aktifkan Notifikasi"}
+                      className="flex items-center gap-2.5 hover:opacity-80 transition-opacity cursor-pointer"
+                    >
+                      <span className="inline-block relative">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 22C13.1 22 14 21.1 14 20H10C10 21.1 10.9 22 12 22ZM18 16V11C18 7.93 16.37 5.36 13.5 4.68V4C13.5 3.17 12.83 2.5 12 2.5C11.17 2.5 10.5 3.17 10.5 4V4.68C7.63 5.36 6 7.92 6 11V16L4 18V19H20V18L18 16Z" fill="#3C50E0" />
+                        </svg>
+
+                        <span className={`flex items-center justify-center font-medium text-2xs absolute -right-1 -top-1.5 w-3.5 h-3.5 rounded-full text-white ${notifPermission === "granted" ? "bg-green-500" : "bg-blue-500 animate-pulse"}`}></span>
+                      </span>
+
+                      <div className="hidden sm:block text-left">
+                        <span className="block text-2xs text-dark-4 uppercase">
+                          notifikasi
+                        </span>
+                        <p className="font-medium text-custom-sm text-dark">
+                          {notifPermission === "granted" ? "Aktif" : "Nonaktif"}
+                        </p>
+                      </div>
+                    </button>
+                  )}
+
                   <Link
                     href={customer ? "/my-account" : "/signin"}
                     className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
@@ -192,15 +242,14 @@ const Header = () => {
                       </span>
                     </span>
 
-                   <div>
-                    <span className="block text-2xs text-dark-4 uppercase">
-                      keranjang
-                    </span>
-                    {/* 🔥 GUNAKAN calculatedTotal DI SINI */}
-                    <p className="font-medium text-custom-sm text-dark">
-                      Rp {Number(totalPrice).toLocaleString("id-ID")}
-                    </p>
-                  </div>
+                    <div>
+                      <span className="block text-2xs text-dark-4 uppercase">
+                        keranjang
+                      </span>
+                      <p className="font-medium text-custom-sm text-dark">
+                        Rp {Number(totalPrice).toLocaleString("id-ID")}
+                      </p>
+                    </div>
                   </button>
                 </div>
 

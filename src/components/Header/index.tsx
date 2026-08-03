@@ -71,12 +71,71 @@ const Header = () => {
       setNotifPermission(permission);
 
       if (permission === "granted") {
-        toast.success("Notifikasi berhasil diaktifkan!");
+        const registration = await navigator.serviceWorker.ready;
+        
+        const responseKey = await fetch("https://admin.prinora.store/api/push-subscription/public-key");
+        const publicVapidKey = await responseKey.text();
+
+        const padding = "=".repeat((4 - (publicVapidKey.length % 4)) % 4);
+        const base64 = (publicVapidKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: outputArray
+        });
+
+        // Ambil ID customer dari localStorage atau state
+        let customerId = null;
+        const customerData = localStorage.getItem("customer");
+        if (customerData && customerData !== "undefined" && customerData !== "null") {
+          try {
+            const parsed = JSON.parse(customerData);
+            customerId = parsed.id || parsed.customer_id || null;
+          } catch (e) {
+            customerId = null;
+          }
+        }
+
+        if (!customerId && customer?.id) {
+          customerId = customer.id;
+        }
+
+        console.log("Customer ID yang dikirim ke backend:", customerId);
+
+        if (!customerId) {
+          toast.error("Silakan login terlebih dahulu sebagai customer!");
+          return;
+        }
+
+        const res = await fetch("https://admin.prinora.store/api/push-subscription", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Customer-Id": String(customerId)
+          },
+          body: JSON.stringify(subscription)
+        });
+
+        const resData = await res.json();
+        console.log("Response dari backend push-subscription:", resData);
+
+        if (res.ok) {
+          toast.success("Notifikasi berhasil diaktifkan!");
+        } else {
+          toast.error("Gagal menyimpan langganan notifikasi ke server.");
+        }
+
       } else if (permission === "denied") {
         toast.error("Izin notifikasi diblokir di pengaturan browser Anda.");
       }
     } catch (err) {
       console.error("Gagal meminta izin notifikasi:", err);
+      toast.error("Gagal mengaktifkan notifikasi.");
     }
   };
 
@@ -180,7 +239,6 @@ const Header = () => {
               <div className="flex w-full lg:w-auto justify-between items-center gap-5">
                 <div className="flex items-center gap-5">
                   
-                  {/* IKON NOTIFIKASI MINIMALIS */}
                   {customer && (
                     <button
                       onClick={handleRequestPermission}

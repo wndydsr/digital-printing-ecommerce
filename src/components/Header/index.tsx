@@ -72,6 +72,8 @@ const Header = () => {
 
       if (permission === "granted") {
         const registration = await navigator.serviceWorker.ready;
+
+        const token = localStorage.getItem("token");
         
         const responseKey = await fetch("https://admin.prinora.store/api/push-subscription/public-key");
         const publicVapidKey = await responseKey.text();
@@ -116,7 +118,7 @@ const Header = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Customer-Id": String(customerId)
+             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(subscription)
         });

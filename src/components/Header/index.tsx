@@ -20,7 +20,7 @@ const Header = () => {
   const [stickyMenu, setStickyMenu] = useState(false);
   const { openCartModal } = useCartModalContext();
 
-  const [notifPermission, setNotifPermission] = useState<string>("granted");
+  const [notifPermission, setNotifPermission] = useState<string>("default");
 
   const pathname = usePathname(); 
   const router = useRouter(); 
@@ -71,27 +71,21 @@ const Header = () => {
       setNotifPermission(permission);
 
       if (permission === "granted") {
-        const registration = await navigator.serviceWorker.ready;
-
-        const token = localStorage.getItem("token");
-        
-        const responseKey = await fetch("https://admin.prinora.store/api/push-subscription/public-key");
-        const publicVapidKey = await responseKey.text();
-
-        const padding = "=".repeat((4 - (publicVapidKey.length % 4)) % 4);
-        const base64 = (publicVapidKey + padding).replace(/-/g, "+").replace(/_/g, "/");
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
+        if (!("serviceWorker" in navigator)) {
+          toast.error("Service Worker tidak didukung oleh browser ini.");
+          return;
         }
+
+        const registration = await navigator.serviceWorker.ready;
+        
+        const publicVapidKey = 'BDWzqj4GuM73lluGB7b5DTSuEp6OrVWiUS5G6YmEvVOpe0LKHW2Mq3gIyXVRAEfsKCelR2zVESulI8Oaq6VjvkA';
+        const convertedKey = urlBase64ToUint8Array(publicVapidKey);
 
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: outputArray
+          applicationServerKey: convertedKey
         });
 
-        // Ambil ID customer dari localStorage atau state
         let customerId = null;
         const customerData = localStorage.getItem("customer");
         if (customerData && customerData !== "undefined" && customerData !== "null") {
@@ -107,29 +101,28 @@ const Header = () => {
           customerId = customer.id;
         }
 
-        console.log("Customer ID yang dikirim ke backend:", customerId);
-
         if (!customerId) {
           toast.error("Silakan login terlebih dahulu sebagai customer!");
           return;
         }
 
-        const res = await fetch("https://admin.prinora.store/api/push-subscription", {
-          method: "POST",
+        const token = localStorage.getItem("token"); 
+        const res = await fetch('https://api.prinora.store/api/push-subscribe', {
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
-             Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'X-Customer-Id': String(customerId)
           },
           body: JSON.stringify(subscription)
         });
 
         const resData = await res.json();
-        console.log("Response dari backend push-subscription:", resData);
 
         if (res.ok) {
           toast.success("Notifikasi berhasil diaktifkan!");
         } else {
-          toast.error("Gagal menyimpan langganan notifikasi ke server.");
+          toast.error(resData.error || "Gagal menyimpan langganan notifikasi ke server.");
         }
 
       } else if (permission === "denied") {
@@ -401,5 +394,16 @@ const Header = () => {
     </>
   );
 };
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 export default Header;

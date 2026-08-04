@@ -29,8 +29,15 @@ export default function RootLayout({
   const isChatPage = pathname.includes('/chat');
 
   useEffect(() => {
-    setTimeout(() => setLoading(false), 1000);
-  }, []);
+  setTimeout(() => setLoading(false), 1000);
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => console.log("SW registered:", reg.scope))
+      .catch((err) => console.error("SW registration failed:", err));
+  }
+}, []);
 
   return (
     <html lang="en">
